@@ -1,0 +1,22 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# node
+node_modules/
+dist/
+
+# app data (database, stored images)
+data/
+
+# local env
+.env
+.env.*
+
+# editors / os
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

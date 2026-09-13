@@ -1,0 +1,14 @@
+[project]
+name = "ocr-dataset-manager"
+version = "0.1.0"
+description = "Annotation tool for Arcaea result screenshot OCR datasets"
+requires-python = ">=3.11"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["backend"]
+
+[tool.uv.sources]
+arcaea-offline-ocr = { path = "../core-ocr" }
