@@ -6,6 +6,7 @@ nothing is persisted - the database only stores human-affirmed values
 (device_results). A cache miss simply recomputes (~1-2s/image)."""
 
 import logging
+import re
 import sqlite3
 import threading
 from collections import OrderedDict
@@ -15,12 +16,22 @@ import numpy as np
 
 from .. import storage
 from ..config import IHDB_PATH
+from ..ocr.custom_rois import CustomRoisT1, CustomRoisT2
 from ..ocr.rapid_ocr_provider import RapidOcrTextProvider
+from arcaea_offline_ocr.crop import crop_xywh
 
 logger = logging.getLogger(__name__)
 
 CAP = 100
 CANDIDATE_COUNT = 5
+
+# T2 renders "L4(P36) E0(P16)": far_late (pure_late) far_early (pure_early);
+# T1 only shows "L1 E5". Parens are optional because rec mangles them
+_EARLY_LATE_T2 = re.compile(
+    r"L\s*(\d+)\s*\(?\s*P?\s*(\d+)?\s*\)?\s*E\s*(\d+)\s*\(?\s*P?\s*(\d+)?\s*\)?",
+    re.IGNORECASE,
+)
+_EARLY_LATE_T1 = re.compile(r"L\s*(\d+)\s*[-]?\s*E\s*(\d+)", re.IGNORECASE)
 
 _cache: OrderedDict[str, dict] = OrderedDict()
 _cache_lock = threading.Lock()
@@ -30,6 +41,7 @@ _cache_lock = threading.Lock()
 _compute_lock = threading.RLock()
 
 _text_provider: RapidOcrTextProvider | None = None
+_raw_text_provider: RapidOcrTextProvider | None = None
 
 
 def _get_text_provider() -> RapidOcrTextProvider:
@@ -40,13 +52,47 @@ def _get_text_provider() -> RapidOcrTextProvider:
         return _text_provider
 
 
-def _read_int(text: str | None) -> int | None:
+def _get_raw_text_provider() -> RapidOcrTextProvider:
+    """Keeps structure characters so early/late lines survive for regex;
+    numeric-only normalization would collapse L0(P22) into 0220."""
+    global _raw_text_provider
+    with _compute_lock:
+        if _raw_text_provider is None:
+            _raw_text_provider = RapidOcrTextProvider(numeric_only=False)
+        return _raw_text_provider
+
+
+def _parse_int(text: str | None) -> int | None:
     if not text:
         return None
-    try:
-        return int(text)
-    except ValueError:
+    digits = text.replace("'", "").replace(" ", "").lstrip("+")
+    if not digits.isdigit():
+        # rec sometimes renders lone digits as look-alike letters (O -> 0)
+        digits = digits.translate(str.maketrans({"O": "0", "o": "0", "D": "0"}))
+    return int(digits) if digits.isdigit() else None
+
+
+def _parse_early_late(
+    text: str | None, rois_type: int
+) -> dict[str, int | None] | None:
+    if not text:
         return None
+    # rec renders the zero in "L0(P22)" as letter O more often than not
+    normalized = text.replace("O", "0").replace("o", "0")
+    if rois_type == 1:
+        match = _EARLY_LATE_T2.search(normalized)
+        if match is None:
+            return None
+        return {
+            "far_late": int(match.group(1)),
+            "pure_late": int(match.group(2)) if match.group(2) else None,
+            "far_early": int(match.group(3)),
+            "pure_early": int(match.group(4)) if match.group(4) else None,
+        }
+    match = _EARLY_LATE_T1.search(normalized)
+    if match is None:
+        return None
+    return {"far_late": int(match.group(1)), "far_early": int(match.group(2))}
 
 
 def _mask_vote_counts(masker, roi, method_names: list[str]) -> list[int]:
@@ -74,6 +120,10 @@ def compute(image_id: str, relative_path: str) -> dict:
         DeviceRoisExtractor,
         DeviceScenario,
     )
+    from arcaea_offline_ocr.scenarios.device.masker.auto import (
+        DeviceRoisMaskerAutoT1,
+        DeviceRoisMaskerAutoT2,
+    )
     from arcaea_offline_ocr.scenarios.device.rois.selector import (
         DeviceRoisAutoSelector,
         DeviceRoisAutoSelectorResult,
@@ -93,17 +143,19 @@ def compute(image_id: str, relative_path: str) -> dict:
             return {"rois_type": None}
         if selector_result is DeviceRoisAutoSelectorResult.T1:
             rois_type = 0
+            rois = CustomRoisT1(cropped.shape[1], cropped.shape[0])
+            masker = DeviceRoisMaskerAutoT1()
         elif selector_result is DeviceRoisAutoSelectorResult.T2:
             rois_type = 1
+            rois = CustomRoisT2(cropped.shape[1], cropped.shape[0])
+            masker = DeviceRoisMaskerAutoT2()
 
-        rois, masker = DeviceRoisAutoSelector.create_rois_and_masker(
-            selector_result, cropped.shape[1], cropped.shape[0]
-        )
         extractor = DeviceRoisExtractor(cropped, rois)
         provider = _get_text_provider()
+        raw_provider = _get_raw_text_provider()
 
         def text_int(roi) -> int | None:
-            return _read_int(provider.result(roi))
+            return _parse_int(provider.result(roi))
 
         prefill: dict = {
             "rois_type": rois_type,
@@ -133,7 +185,27 @@ def compute(image_id: str, relative_path: str) -> dict:
                     "clear_status_pure_memory",
                 ],
             ),
+            "high_score": _parse_int(
+                raw_provider.result_rec_only(crop_xywh(cropped, rois.high_score.rounded()))
+            ),
+            "high_score_delta": _parse_int(
+                raw_provider.result_rec_only(
+                    crop_xywh(cropped, rois.high_score_delta.rounded())
+                )
+            ),
+            "pure_shiny": _parse_int(
+                raw_provider.result_rec_only(crop_xywh(cropped, rois.pure_shiny.rounded()))
+            ),
         }
+
+        early_late = _parse_early_late(
+            raw_provider.result_rec_only(crop_xywh(cropped, rois.early_late.rounded())),
+            rois_type,
+        )
+        if early_late is not None:
+            prefill.update(early_late)
+        for key in ("far_late", "pure_late", "far_early", "pure_early"):
+            prefill.setdefault(key, None)
         prefill["rating_class"] = max(
             enumerate(prefill["rating_class_votes"]), key=lambda it: it[1]
         )[0]

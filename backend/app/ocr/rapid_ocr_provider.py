@@ -7,6 +7,7 @@ fallback option.
 
 from typing import Any
 
+import cv2
 from cv2.typing import MatLike
 from typing_extensions import override
 
@@ -76,3 +77,21 @@ class RapidOcrTextProvider(OcrTextProvider):
     @override
     def result(self, img: MatLike, /) -> str | None:
         return self.result_raw(img)
+
+    def result_rec_only(self, img: MatLike, /) -> str | None:
+        """Recognize a single-line crop without detection.
+
+        For fixed small ROIs (counters, the HIGH SCORE row) detection is
+        unreliable - it either finds nothing or produces worse text than
+        a direct recognition pass. A replicate border plus 2x upscale
+        markedly improves lone-short-digit crops."""
+        h, w = img.shape[:2]
+        pad = max(2, round(min(h, w) * 0.15))
+        padded = cv2.copyMakeBorder(img, pad, pad, pad, pad, cv2.BORDER_REPLICATE)
+        resized = cv2.resize(padded, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        rec = self._engine(resized, use_det=False, use_cls=False, use_rec=True)
+        txts = getattr(rec, "txts", None)
+        scores = getattr(rec, "scores", None)
+        if not txts or scores is None or max(scores) < self.MIN_REC_CONFIDENCE:
+            return None
+        return self._normalize("".join(txts))
