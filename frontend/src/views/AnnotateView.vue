@@ -2,14 +2,11 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue-sonner";
-import {
-  api,
-  RATING_CLASS_NAMES,
-  type Prefill,
-  type ResultFields,
-} from "../api";
-import Combobox from "../components/Combobox.vue";
+import { api, catalog, type Prefill, type ResultFields, type SongEntry } from "../api";
 import NumberField from "../components/NumberField.vue";
+import PartnerPicker from "../components/PartnerPicker.vue";
+import SegmentedSelect from "../components/SegmentedSelect.vue";
+import SongPicker from "../components/SongPicker.vue";
 import { computeWarnings } from "../warnings";
 
 const route = useRoute();
@@ -21,6 +18,8 @@ const loading = ref(true);
 
 const songCandidates = ref<{ image_id: string; confidence: number }[]>([]);
 const partnerCandidates = ref<{ image_id: string; confidence: number }[]>([]);
+const songs = ref<SongEntry[]>([]);
+const partners = ref<{ id: string }[]>([]);
 
 const emptyFields = (): ResultFields => ({
   rois_type: null,
@@ -44,6 +43,20 @@ const emptyFields = (): ResultFields => ({
 });
 
 const form = reactive<ResultFields>(emptyFields());
+
+const roisTypeOptions = [
+  { value: null, label: "未知" },
+  { value: 0, label: "T1" },
+  { value: 1, label: "T2" },
+];
+const ratingClassOptions = ["PST", "PRS", "FTR", "BYD", "ETR"].map((label, i) => ({
+  value: i,
+  label: `${i} ${label}`,
+}));
+const clearStatusOptions = ["LOST", "CLEAR", "FR", "PM"].map((label, i) => ({
+  value: i,
+  label: `${i} ${label}`,
+}));
 
 function applyPrefill(prefill: Prefill) {
   form.rois_type = prefill.rois_type;
@@ -73,9 +86,13 @@ async function load() {
         toast.error(`预识别失败：${e.message}`);
         return null;
       }),
-      api
-        .listImages(false, 0, 1)
-        .then(() => undefined)
+      catalog
+        .songs()
+        .then((s) => (songs.value = s))
+        .catch(() => undefined),
+      catalog
+        .partners()
+        .then((p) => (partners.value = p))
         .catch(() => undefined),
     ]);
 
@@ -85,20 +102,20 @@ async function load() {
       partnerCandidates.value = prefill.partner_id_candidates ?? [];
     }
 
-		try {
-			const saved = await api.getResult(imageId.value);
-			// saved (draft) values win, but empty fields fall back to prefill
-			const merged: ResultFields = { ...emptyFields(), ...prefill };
-			for (const key of Object.keys(emptyFields()) as (keyof ResultFields)[]) {
-				const value = saved[key];
-				if (value != null) {
-					(merged as Record<string, unknown>)[key] = value;
-				}
-			}
-			Object.assign(form, merged);
-		} catch {
-			// not annotated yet; prefill stays
-		}
+    try {
+      const saved = await api.getResult(imageId.value);
+      // saved (draft) values win, but empty fields fall back to prefill
+      const merged: ResultFields = { ...emptyFields(), ...prefill };
+      for (const key of Object.keys(emptyFields()) as (keyof ResultFields)[]) {
+        const value = saved[key];
+        if (value != null) {
+          (merged as Record<string, unknown>)[key] = value;
+        }
+      }
+      Object.assign(form, merged);
+    } catch {
+      // not annotated yet; prefill stays
+    }
 
     const list = await api.listImages(false, 0, 1);
     filename.value = list.items.find((it) => it.id === imageId.value)?.original_filename ?? null;
@@ -175,39 +192,25 @@ onUnmounted(() => {
 
     <section class="space-y-4">
       <div class="rounded border border-border bg-card p-3 space-y-3">
-        <div class="grid grid-cols-3 gap-2">
-          <label>
-            <span class="field-label">rois_type</span>
-            <select v-model.number="form.rois_type" class="field-input mt-0.5">
-              <option :value="null">未知</option>
-              <option :value="0">T1</option>
-              <option :value="1">T2</option>
-            </select>
-          </label>
-          <label>
-            <span class="field-label">rating_class</span>
-            <select v-model.number="form.rating_class" class="field-input mt-0.5">
-              <option :value="null">未知</option>
-              <option v-for="(name, i) in RATING_CLASS_NAMES" :key="name" :value="i">
-                {{ i }} {{ name }}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span class="field-label">clear_status</span>
-            <select v-model.number="form.clear_status" class="field-input mt-0.5">
-              <option :value="null">未知</option>
-              <option :value="0">0 LOST</option>
-              <option :value="1">1 CLEAR</option>
-              <option :value="2">2 FR</option>
-              <option :value="3">3 PM</option>
-            </select>
-          </label>
-        </div>
+        <SegmentedSelect v-model="form.rois_type" label="rois_type" :options="roisTypeOptions" />
+        <SegmentedSelect
+          v-model="form.rating_class"
+          label="rating_class"
+          :options="ratingClassOptions"
+        />
+        <SegmentedSelect
+          v-model="form.clear_status"
+          label="clear_status"
+          :options="clearStatusOptions"
+        />
 
-        <div class="grid grid-cols-2 gap-2">
-          <Combobox v-model="form.song_id" label="song_id" :options="songCandidates" />
-          <Combobox v-model="form.partner_id" label="partner_id" :options="partnerCandidates" />
+        <div class="grid grid-cols-1 gap-2">
+          <SongPicker v-model="form.song_id" :candidates="songCandidates" :songs="songs" />
+          <PartnerPicker
+            v-model="form.partner_id"
+            :candidates="partnerCandidates"
+            :partners="partners"
+          />
         </div>
 
         <div class="grid grid-cols-3 gap-2">

@@ -82,6 +82,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export interface SongEntry {
+  id: string;
+  title: string;
+}
+
+export interface PartnerEntry {
+  id: string;
+}
+
+const catalogCache: Record<"songs" | "partners", Promise<unknown> | null> = {
+  songs: null,
+  partners: null,
+};
+
+export const catalog = {
+  songs: (): Promise<SongEntry[]> => {
+    catalogCache.songs ??= request<SongEntry[]>("/api/catalog/songs");
+    return catalogCache.songs as Promise<SongEntry[]>;
+  },
+  partners: (): Promise<PartnerEntry[]> => {
+    catalogCache.partners ??= request<PartnerEntry[]>("/api/catalog/partners");
+    return catalogCache.partners as Promise<PartnerEntry[]>;
+  },
+  partnerIconUrl: (id: string) => `/api/catalog/partners/${id}/icon`,
+};
+
 export const api = {
   listImages: (uncheckedOnly: boolean, offset: number, limit: number) =>
     request<{ total: number; items: ImageItem[] }>(
