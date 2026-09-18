@@ -85,15 +85,20 @@ async function load() {
       partnerCandidates.value = prefill.partner_id_candidates ?? [];
     }
 
-    try {
-      const saved = await api.getResult(imageId.value);
-      Object.assign(form, saved, {
-        image_id: undefined,
-        updated_at: undefined,
-      });
-    } catch {
-      // not annotated yet; prefill stays
-    }
+		try {
+			const saved = await api.getResult(imageId.value);
+			// saved (draft) values win, but empty fields fall back to prefill
+			const merged: ResultFields = { ...emptyFields(), ...prefill };
+			for (const key of Object.keys(emptyFields()) as (keyof ResultFields)[]) {
+				const value = saved[key];
+				if (value != null) {
+					(merged as Record<string, unknown>)[key] = value;
+				}
+			}
+			Object.assign(form, merged);
+		} catch {
+			// not annotated yet; prefill stays
+		}
 
     const list = await api.listImages(false, 0, 1);
     filename.value = list.items.find((it) => it.id === imageId.value)?.original_filename ?? null;
