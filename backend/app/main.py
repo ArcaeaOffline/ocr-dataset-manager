@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from .db import init_db
+from .routers import images, imports
 
 
 @asynccontextmanager
@@ -13,6 +14,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="OCR Dataset Manager", lifespan=lifespan)
+app.include_router(imports.router)
+app.include_router(images.router)
 
 
 @app.get("/api/health")
