@@ -16,6 +16,7 @@
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.133",
     "@types/node": "^24.13.3",
     "@unocss/reset": "^66.10.5",
     "@vitejs/plugin-vue": "^6.0.8",

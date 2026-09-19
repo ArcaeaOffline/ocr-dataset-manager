@@ -70,7 +70,10 @@ function selectFromPanel(id: string) {
           @blur="onBlur"
         />
       </label>
-      <button class="btn-secondary" title="搜索全目录" @click="panelOpen = true">搜索</button>
+      <button class="btn-secondary" title="搜索全目录" @click="panelOpen = true">
+        <i class="i-lucide-search size-4" />
+        搜索
+      </button>
     </div>
     <div
       v-if="open && props.candidates.length > 0"

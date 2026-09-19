@@ -36,6 +36,13 @@ export interface Prefill {
   rating_class_votes?: number[];
   clear_status?: number | null;
   clear_status_votes?: number[];
+  high_score?: number | null;
+  high_score_delta?: number | null;
+  pure_shiny?: number | null;
+  pure_early?: number | null;
+  pure_late?: number | null;
+  far_early?: number | null;
+  far_late?: number | null;
   song_id?: string | null;
   song_id_candidates?: Candidate[];
   partner_id?: string | null;

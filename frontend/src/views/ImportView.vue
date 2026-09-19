@@ -6,6 +6,7 @@ import { api, type ImportBatch } from "../api";
 const sourcePath = ref("");
 const recursive = ref(false);
 const batches = ref<ImportBatch[]>([]);
+const submitting = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 
 async function refresh() {
@@ -23,7 +24,8 @@ function schedule() {
 }
 
 async function submit() {
-  if (sourcePath.value.trim() === "") return;
+  if (sourcePath.value.trim() === "" || submitting.value) return;
+  submitting.value = true;
   try {
     const batch = await api.createImport(sourcePath.value.trim(), recursive.value);
     toast.success(`导入已开始：${batch.id.slice(0, 8)}`);
@@ -31,6 +33,8 @@ async function submit() {
     schedule();
   } catch (e) {
     toast.error(`导入失败：${(e as Error).message}`);
+  } finally {
+    submitting.value = false;
   }
 }
 
@@ -59,7 +63,16 @@ onUnmounted(() => {
           <input v-model="recursive" type="checkbox" />
           含子目录
         </label>
-        <button class="btn" @click="submit">开始导入</button>
+        <button class="btn" :disabled="submitting" @click="submit">
+          <i
+            :class="
+              submitting
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-folder-plus size-4'
+            "
+          />
+          开始导入
+        </button>
       </div>
     </section>
 

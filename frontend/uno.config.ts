@@ -1,9 +1,14 @@
-import { defineConfig, presetWind3 } from "unocss";
+import { defineConfig, presetIcons, presetWind3 } from "unocss";
 
 // semantic color tokens in the shadcn convention, resolved from CSS
 // variables declared in src/style.css (light + dark)
 export default defineConfig({
-  presets: [presetWind3()],
+  presets: [
+    presetWind3(),
+    presetIcons({
+      extraProperties: { display: "inline-block", "vertical-align": "middle" },
+    }),
+  ],
   theme: {
     colors: {
       background: "var(--bg)",
@@ -31,8 +36,8 @@ export default defineConfig({
     "field-input":
       "w-full rounded border border-input bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-ring",
     "field-label": "text-xs text-muted-foreground",
-    btn: "whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-primary text-primary-fg disabled:opacity-50 cursor-pointer",
+    btn: "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-primary text-primary-fg disabled:opacity-50 cursor-pointer",
     "btn-secondary":
-      "whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-secondary text-secondary-fg border border-border cursor-pointer",
+      "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-secondary text-secondary-fg border border-border cursor-pointer",
   },
 });

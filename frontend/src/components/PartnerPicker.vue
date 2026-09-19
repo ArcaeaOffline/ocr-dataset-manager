@@ -62,7 +62,10 @@ function selectFromPanel(id: string) {
           @blur="onBlur"
         />
       </label>
-      <button class="btn-secondary" title="浏览全部搭档" @click="panelOpen = true">浏览</button>
+      <button class="btn-secondary" title="浏览全部搭档" @click="panelOpen = true">
+        <i class="i-lucide-layout-grid size-4" />
+        浏览
+      </button>
     </div>
     <div
       v-if="open && props.candidates.length > 0"

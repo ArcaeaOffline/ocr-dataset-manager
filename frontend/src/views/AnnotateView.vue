@@ -15,6 +15,8 @@ const router = useRouter();
 const imageId = computed(() => String(route.params.id));
 const filename = ref<string | null>(null);
 const loading = ref(true);
+const imgReady = ref(false);
+const busyAction = ref<"saveChecked" | "saveAndNext" | "skip" | null>(null);
 
 const songCandidates = ref<{ image_id: string; confidence: number }[]>([]);
 const partnerCandidates = ref<{ image_id: string; confidence: number }[]>([]);
@@ -69,17 +71,18 @@ function applyPrefill(prefill: Prefill) {
   form.far = prefill.far ?? null;
   form.lost = prefill.lost ?? null;
   form.max_recall = prefill.max_recall ?? null;
-  form.high_score = null;
-  form.high_score_delta = null;
-  form.pure_shiny = null;
-  form.pure_early = null;
-  form.pure_late = null;
-  form.far_early = null;
-  form.far_late = null;
+  form.high_score = prefill.high_score ?? null;
+  form.high_score_delta = prefill.high_score_delta ?? null;
+  form.pure_shiny = prefill.pure_shiny ?? null;
+  form.pure_early = prefill.pure_early ?? null;
+  form.pure_late = prefill.pure_late ?? null;
+  form.far_early = prefill.far_early ?? null;
+  form.far_late = prefill.far_late ?? null;
 }
 
 async function load() {
   loading.value = true;
+  imgReady.value = false;
   try {
     const [prefill] = await Promise.all([
       api.getPrefill(imageId.value).catch((e: Error) => {
@@ -148,17 +151,31 @@ async function goNext() {
   await router.replace(`/annotate/${nextId}`);
 }
 
+async function withBusy(action: "saveChecked" | "saveAndNext" | "skip", run: () => Promise<void>) {
+  if (busyAction.value !== null) return;
+  busyAction.value = action;
+  try {
+    await run();
+  } finally {
+    busyAction.value = null;
+  }
+}
+
 async function saveAndNext() {
-  if (await save()) await goNext();
+  await withBusy("saveAndNext", async () => {
+    if (await save()) await goNext();
+  });
 }
 
 async function saveChecked() {
   form.checked = true;
-  if (await save()) await goNext();
+  await withBusy("saveChecked", async () => {
+    if (await save()) await goNext();
+  });
 }
 
 async function skip() {
-  await goNext();
+  await withBusy("skip", goNext);
 }
 
 const warnings = computed(() => computeWarnings(form));
@@ -180,13 +197,29 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="!loading" class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
+  <div
+    v-if="loading"
+    class="grid place-items-center py-24 text-muted-foreground"
+    aria-busy="true"
+  >
+    <i class="i-lucide-loader-circle size-6 animate-spin" />
+  </div>
+  <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
     <section>
-      <img
-        :src="api.fileUrl(imageId)"
-        class="w-full rounded border border-border bg-card"
-        :alt="filename ?? imageId"
-      />
+      <div class="relative">
+        <img
+          :src="api.fileUrl(imageId)"
+          class="w-full rounded border border-border bg-card"
+          :alt="filename ?? imageId"
+          @load="imgReady = true"
+        />
+        <div
+          v-if="!imgReady"
+          class="absolute inset-0 grid place-items-center rounded border border-border bg-card text-muted-foreground"
+        >
+          <i class="i-lucide-loader-circle size-6 animate-spin" />
+        </div>
+      </div>
       <p class="mt-1 text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
     </section>
 
@@ -236,20 +269,53 @@ onUnmounted(() => {
         v-if="warnings.length > 0"
         class="rounded border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
       >
-        <div class="mb-1 font-medium">一致性警告</div>
+        <div class="mb-1 flex items-center gap-1.5 font-medium">
+          <i class="i-lucide-triangle-alert size-4" />
+          一致性警告
+        </div>
         <ul class="list-inside list-disc space-y-0.5">
           <li v-for="w in warnings" :key="w">{{ w }}</li>
         </ul>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <button class="btn" @click="saveChecked">确认并下一张</button>
-        <button class="btn-secondary" @click="saveAndNext">保存草稿并下一张</button>
-        <button class="btn-secondary" @click="skip">跳过</button>
-        <label class="ml-auto flex items-center gap-1.5 text-sm">
+      <div class="flex justify-end">
+        <label class="flex items-center gap-1.5 text-sm">
           <input v-model="form.checked" type="checkbox" />
           checked
         </label>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="btn" :disabled="busyAction !== null" @click="saveChecked">
+          <i
+            :class="
+              busyAction === 'saveChecked'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-check size-4'
+            "
+          />
+          确认并下一张
+        </button>
+        <button class="btn-secondary" :disabled="busyAction !== null" @click="saveAndNext">
+          <i
+            :class="
+              busyAction === 'saveAndNext'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-save size-4'
+            "
+          />
+          保存草稿并下一张
+        </button>
+        <button class="btn-secondary" :disabled="busyAction !== null" @click="skip">
+          <i
+            :class="
+              busyAction === 'skip'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-skip-forward size-4'
+            "
+          />
+          跳过
+        </button>
       </div>
     </section>
   </div>
