@@ -92,7 +92,7 @@ function selectFromPanel(id: string) {
       <h3 class="mb-2 text-sm font-semibold">选择搭档</h3>
       <input v-model="query" class="field-input" placeholder="按 id 过滤…" autofocus />
       <div class="mt-2 max-h-80 overflow-y-auto">
-        <div class="grid grid-cols-5 gap-2">
+        <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
           <button
             v-for="p in filteredPartners"
             :key="p.id"

@@ -32,13 +32,13 @@ const thumbFailed = ref<Record<string, true>>({});
 
 <template>
   <div class="py-4">
-    <div class="mb-3 flex items-center gap-4 text-sm">
-      <label class="flex items-center gap-1.5">
+    <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      <label class="flex items-center gap-1.5 whitespace-nowrap">
         <input v-model="uncheckedOnly" type="checkbox" />
         只看未标注
       </label>
-      <span class="text-muted-foreground">共 {{ total }} 张</span>
-      <span class="ml-auto flex items-center gap-2">
+      <span class="whitespace-nowrap text-muted-foreground">共 {{ total }} 张</span>
+      <span class="ml-auto flex items-center gap-2 whitespace-nowrap">
         <button class="btn-secondary" :disabled="page === 0 || loading" @click="page--">
           上一页
         </button>
@@ -62,7 +62,7 @@ const thumbFailed = ref<Record<string, true>>({});
     </div>
     <div
       v-else
-      class="grid grid-cols-5 gap-3"
+      class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
       :class="{ 'pointer-events-none opacity-50': loading }"
     >
       <RouterLink

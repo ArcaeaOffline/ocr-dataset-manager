@@ -14,11 +14,11 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6"
       @click.self="emit('close')"
     >
       <div
-        class="flex max-h-full w-[560px] flex-col rounded-lg border border-border bg-card p-4 shadow-xl"
+        class="flex max-h-full w-full max-w-[560px] flex-col rounded-lg border border-border bg-card p-4 shadow-xl"
       >
         <slot />
       </div>

@@ -49,8 +49,9 @@ onUnmounted(() => {
   <div class="py-4">
     <section class="rounded border border-border bg-card p-4">
       <h2 class="mb-3 text-sm font-semibold">从文件夹导入</h2>
-      <div class="flex items-end gap-3">
-        <label class="flex-1">
+      <!-- label wraps to its own row on mobile; one row again from sm up -->
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="block w-full sm:w-auto sm:flex-1">
           <span class="field-label">服务器端路径</span>
           <input
             v-model="sourcePath"
@@ -83,8 +84,9 @@ onUnmounted(() => {
         :key="b.id"
         class="mb-2 rounded border border-border bg-card p-3 text-sm"
       >
-        <div class="flex items-center justify-between gap-4">
-          <span class="truncate" :title="b.source_path">{{ b.source_path }}</span>
+        <div class="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <!-- full path wraps on mobile instead of being ellipsized -->
+          <span class="break-all sm:truncate" :title="b.source_path">{{ b.source_path }}</span>
           <span v-if="b.finished_at == null" class="shrink-0 font-medium text-blue-500">
             进行中 {{ b.imported_count + b.skipped_count + b.failed_count }} /
             {{ b.file_count }}

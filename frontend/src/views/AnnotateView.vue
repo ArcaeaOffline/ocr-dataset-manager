@@ -15,6 +15,9 @@ const router = useRouter();
 
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
+const viewerOpen = ref(false);
+const ZOOM_LEVELS = [1, 2, 3, 4];
+const zoomIdx = ref(0);
 const busyAction = ref<"saveChecked" | "saveAndNext" | "skip" | null>(null);
 
 interface AnnotateData {
@@ -137,6 +140,11 @@ watch(
 
 watch(imageId, () => {
   imgReady.value = false;
+  viewerOpen.value = false;
+});
+
+watch(viewerOpen, (opened) => {
+  if (opened) zoomIdx.value = 0;
 });
 
 // vote counts are close when the top two differ by at most one; surface
@@ -226,6 +234,9 @@ function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === "Enter") {
     void saveAndNext();
   }
+  if (event.key === "Escape") {
+    viewerOpen.value = false;
+  }
 }
 
 onMounted(() => {
@@ -241,13 +252,16 @@ onUnmounted(() => {
     <i class="i-lucide-loader-circle size-6 animate-spin" />
   </div>
   <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
-    <section class="lg:sticky lg:top-4 lg:self-start">
+    <section
+      class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
+    >
       <div class="relative">
         <img
           :src="api.fileUrl(imageId)"
-          class="w-full rounded border border-border bg-card lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
+          class="w-full cursor-zoom-in rounded border border-border bg-card lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
           :alt="filename ?? imageId"
           @load="imgReady = true"
+          @click="viewerOpen = true"
         />
         <div
           v-if="!imgReady"
@@ -256,7 +270,9 @@ onUnmounted(() => {
           <i class="i-lucide-loader-circle size-6 animate-spin" />
         </div>
       </div>
-      <p class="mt-1 text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
+      <!-- break-all: imported filenames are one long unbreakable token
+           that would otherwise widen the page -->
+      <p class="mt-1 break-all text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
     </section>
 
     <section class="space-y-4">
@@ -363,5 +379,45 @@ onUnmounted(() => {
         </button>
       </div>
     </section>
+
+    <!-- full-screen viewer with in-app zoom: width scaling + native touch
+         panning inside the scroll box, so page zoom is never touched -->
+    <div v-if="viewerOpen" class="fixed inset-0 z-50 flex flex-col bg-black/90">
+      <div class="flex items-center justify-between gap-2 p-2 text-white">
+        <span class="truncate text-xs">{{ filename ?? imageId }}</span>
+        <div class="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            class="cursor-pointer rounded p-1.5 hover:bg-white/10 disabled:opacity-40"
+            :disabled="zoomIdx === 0"
+            @click="zoomIdx--"
+          >
+            <i class="i-lucide-zoom-out size-4" />
+          </button>
+          <span class="w-8 text-center text-xs tabular-nums">
+            {{ ZOOM_LEVELS[zoomIdx] }}x
+          </span>
+          <button
+            type="button"
+            class="cursor-pointer rounded p-1.5 hover:bg-white/10 disabled:opacity-40"
+            :disabled="zoomIdx === ZOOM_LEVELS.length - 1"
+            @click="zoomIdx++"
+          >
+            <i class="i-lucide-zoom-in size-4" />
+          </button>
+          <button type="button" class="cursor-pointer rounded p-1.5 hover:bg-white/10" @click="viewerOpen = false">
+            <i class="i-lucide-x size-4" />
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <img
+          :src="api.fileUrl(imageId)"
+          class="max-w-none"
+          :style="{ width: `${ZOOM_LEVELS[zoomIdx] * 100}%` }"
+          :alt="filename ?? imageId"
+        />
+      </div>
+    </div>
   </div>
 </template>

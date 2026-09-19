@@ -39,20 +39,23 @@ const themeOptions: { value: ThemeChoice; icon: string; title: string }[] = [
 
 <template>
   <div class="mx-auto max-w-6xl px-4 pb-10">
-    <header class="flex items-center gap-6 border-b border-border py-3">
-      <span class="text-sm font-semibold">OCR Dataset Manager</span>
-      <nav class="flex items-center gap-4 text-sm">
-        <RouterLink to="/" class="flex items-center gap-1 hover:underline">
+    <header class="flex items-center gap-3 border-b border-border py-3 sm:gap-6">
+      <span class="whitespace-nowrap text-sm font-semibold">
+        <span class="sm:hidden">ODM</span>
+        <span class="hidden sm:inline">OCR Dataset Manager</span>
+      </span>
+      <nav class="flex items-center gap-3 text-sm sm:gap-4">
+        <RouterLink to="/" class="flex items-center gap-1 whitespace-nowrap hover:underline">
           <i class="i-lucide-images size-4" />
           队列
         </RouterLink>
-        <RouterLink to="/import" class="flex items-center gap-1 hover:underline">
+        <RouterLink to="/import" class="flex items-center gap-1 whitespace-nowrap hover:underline">
           <i class="i-lucide-folder-plus size-4" />
           导入
         </RouterLink>
       </nav>
       <div class="ml-auto flex items-center gap-2">
-        <span class="field-label">主题</span>
+        <span class="field-label hidden sm:inline">主题</span>
         <div class="flex gap-1">
           <button
             v-for="opt in themeOptions"
