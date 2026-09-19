@@ -24,7 +24,7 @@ from ..ocr.custom_rois import CustomRoisT1, CustomRoisT2
 from ..ocr.rapid_ocr_provider import RapidOcrTextProvider
 
 if TYPE_CHECKING:
-    from arcaea_offline_ocr.providers import ImageIdProviderResult
+    from arcaea_offline_ocr.providers.ihdb import ImageHashDatabaseIdProviderResult
     from arcaea_offline_ocr.scenarios.device.masker.auto import DeviceRoisMaskerAuto
 
 logger = logging.getLogger(__name__)
@@ -109,14 +109,39 @@ def _mask_vote_counts(
     return [int(np.count_nonzero(getattr(masker, name)(roi))) for name in method_names]
 
 
-def _candidates_to_dicts(
-    results: Sequence["ImageIdProviderResult"],
-) -> list[dict[str, str | float]]:
-    return [
-        {"image_id": r.image_id, "confidence": r.confidence}
-        for r in sorted(results, key=lambda r: r.confidence, reverse=True)[
-            :CANDIDATE_COUNT
-        ]
+def _rank_candidates(
+    results: Sequence["ImageHashDatabaseIdProviderResult"],
+) -> tuple[str | None, list[dict[str, str | float]]]:
+    """Merge the per-hash-type lookups into one ranking.
+
+    An id matched by several hash types gets one entry whose confidence
+    is the weighted average over the types it actually matched with
+    (pHash/DCT weighs 4, difference 2, average 1). Returns
+    the top id and the top CANDIDATE_COUNT distinct ids for the API."""
+    from arcaea_offline_ocr.providers.ihdb import ImageHashType  # noqa: PLC0415
+
+    weights = {
+        ImageHashType.AVERAGE: 1,
+        ImageHashType.DIFFERENCE: 2,
+        ImageHashType.DCT: 4,
+    }
+    by_id: dict[str, list[tuple[int, float]]] = {}
+    for r in results:
+        weight = weights.get(r.image_hash_type, 1)
+        by_id.setdefault(r.image_id, []).append((weight, r.confidence))
+    ranked = sorted(
+        (
+            (image_id, sum(w * c for w, c in m) / sum(w for w, _ in m))
+            for image_id, m in by_id.items()
+        ),
+        key=lambda it: it[1],
+        reverse=True,
+    )
+    if not ranked:
+        return None, []
+    return ranked[0][0], [
+        {"image_id": image_id, "confidence": confidence}
+        for image_id, confidence in ranked[:CANDIDATE_COUNT]
     ]
 
 
@@ -241,18 +266,12 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
                 ),
                 ImageCategory.PARTNER_ICON,
             )
-        prefill["song_id"] = (
-            max(jacket_candidates, key=lambda r: r.confidence).image_id
-            if jacket_candidates
-            else None
+        prefill["song_id"], prefill["song_id_candidates"] = _rank_candidates(
+            jacket_candidates
         )
-        prefill["song_id_candidates"] = _candidates_to_dicts(jacket_candidates)
-        prefill["partner_id"] = (
-            max(partner_candidates, key=lambda r: r.confidence).image_id
-            if partner_candidates
-            else None
+        prefill["partner_id"], prefill["partner_id_candidates"] = _rank_candidates(
+            partner_candidates
         )
-        prefill["partner_id_candidates"] = _candidates_to_dicts(partner_candidates)
         return prefill
 
 
