@@ -9,12 +9,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import cv2
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from .. import storage
 from ..db import SessionLocal
-from ..models import Image, ImportBatch, OriginalFilename
+from ..models import DeviceResult, Image, ImportBatch, OriginalFilename
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +82,28 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
     finally:
         session.close()
 
-    if imported:
-        from . import prefill  # noqa: PLC0415
+    if not imported:
+        return
 
-        prefill.warm(imported)
+    from . import prefill  # noqa: PLC0415
+
+    # the prefill LRU only holds prefill.CAP entries, so warming more than
+    # the head of the annotation queue is wasted OCR work
+    with SessionLocal() as session:
+        queue_head = session.execute(
+            select(Image.id, Image.relative_path)
+            .where(
+                ~exists(
+                    select(DeviceResult.image_id).where(
+                        DeviceResult.image_id == Image.id,
+                        DeviceResult.checked.is_(True),
+                    )
+                )
+            )
+            .order_by(Image.created_at.desc(), Image.id.desc())
+            .limit(prefill.CAP)
+        ).all()
+    prefill.warm([(row[0], row[1]) for row in queue_head])
 
 
 def _import_one(

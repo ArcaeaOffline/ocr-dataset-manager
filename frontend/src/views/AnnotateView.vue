@@ -85,20 +85,20 @@ function applyPrefill(prefill: Prefill) {
 const { data, loading } = useRequest(
   imageId,
   async (id): Promise<AnnotateData> => {
-    const [prefill, saved, list, songs, partners] = await Promise.all([
+    const [prefill, saved, image, songs, partners] = await Promise.all([
       api.getPrefill(id).catch((e: Error) => {
         toast.error(`预识别失败：${e.message}`);
         return null;
       }),
       api.getResult(id).catch(() => null),
-      api.listImages(false, 0, 1).catch(() => null),
+      api.getImage(id).catch(() => null),
       catalog.songs().catch(() => [] as SongEntry[]),
       catalog.partners().catch(() => [] as { id: string }[]),
     ]);
     return {
       prefill,
       saved,
-      filename: list?.items.find((it) => it.id === id)?.original_filename ?? null,
+      filename: image?.original_filename ?? null,
       songs,
       partners,
     };
@@ -130,6 +130,7 @@ watch(
       }
       Object.assign(form, merged);
     }
+    void preloadNext();
   },
   { immediate: true },
 );
@@ -137,6 +138,33 @@ watch(
 watch(imageId, () => {
   imgReady.value = false;
 });
+
+// vote counts are close when the top two differ by at most one; surface
+// that so the annotator double-checks an ambiguous prefill
+function voteHint(votes: number[] | undefined): string | null {
+  if (votes == null || votes.length < 2) return null;
+  const sorted = [...votes].sort((a, b) => b - a);
+  const top = sorted[0] ?? 0;
+  const second = sorted[1] ?? 0;
+  if (second > 0 && top - second <= 1) {
+    return `预填投票接近：${votes.join(" / ")}`;
+  }
+  return null;
+}
+
+const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_votes));
+const clearHint = computed(() => voteHint(data.value.prefill?.clear_status_votes));
+
+async function preloadNext() {
+  try {
+    const { id: nextId } = await api.getNextImage(imageId.value);
+    if (nextId != null && nextId !== imageId.value) {
+      new Image().src = api.fileUrl(nextId);
+    }
+  } catch {
+    // preload is best-effort
+  }
+}
 
 async function save(): Promise<boolean> {
   try {
@@ -150,15 +178,18 @@ async function save(): Promise<boolean> {
 }
 
 async function goNext() {
-  const data = await api.listImages(true, 0, 200);
-  const ids = data.items.map((it) => it.id);
-  if (ids.length === 0) {
+  let nextId: string | null;
+  try {
+    ({ id: nextId } = await api.getNextImage(imageId.value));
+  } catch (e) {
+    toast.error(`获取下一张失败：${(e as Error).message}`);
+    return;
+  }
+  if (nextId === null) {
     toast.success("没有未标注的图片了");
     await router.push("/");
     return;
   }
-  const idx = ids.indexOf(imageId.value);
-  const nextId = ids[(idx + 1) % ids.length];
   await router.replace(`/annotate/${nextId}`);
 }
 
@@ -235,11 +266,13 @@ onUnmounted(() => {
           v-model="form.rating_class"
           label="rating_class"
           :options="ratingClassOptions"
+          :hint="ratingHint"
         />
         <SegmentedSelect
           v-model="form.clear_status"
           label="clear_status"
           :options="clearStatusOptions"
+          :hint="clearHint"
         />
 
         <div class="grid grid-cols-1 gap-2">
@@ -268,6 +301,20 @@ onUnmounted(() => {
           <NumberField v-model="form.far_early" label="far_early" />
           <NumberField v-model="form.far_late" label="far_late" />
         </div>
+
+        <button
+          type="button"
+          class="mt-1 w-full cursor-pointer rounded border px-3 py-2 text-sm font-medium"
+          :class="
+            form.checked
+              ? 'border-primary bg-primary text-primary-fg'
+              : 'border-border bg-secondary text-secondary-fg'
+          "
+          @click="form.checked = !form.checked"
+        >
+          <i :class="form.checked ? 'i-lucide-check-check size-4' : 'i-lucide-check size-4'" />
+          {{ form.checked ? "已确认（点击取消）" : "标记为确认" }}
+        </button>
       </div>
 
       <div
@@ -281,13 +328,6 @@ onUnmounted(() => {
         <ul class="list-inside list-disc space-y-0.5">
           <li v-for="w in warnings" :key="w">{{ w }}</li>
         </ul>
-      </div>
-
-      <div class="flex justify-end">
-        <label class="flex items-center gap-1.5 text-sm">
-          <input v-model="form.checked" type="checkbox" />
-          checked
-        </label>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">

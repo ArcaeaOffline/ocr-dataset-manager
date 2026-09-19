@@ -4,7 +4,6 @@ export interface ImageItem {
   original_filename: string | null;
   width: number | null;
   height: number | null;
-  has_thumbnail: boolean;
   checked: boolean | null;
   created_at: string;
 }
@@ -123,8 +122,14 @@ export const api = {
     request<{ total: number; items: ImageItem[] }>(
       `/api/images?unchecked_only=${uncheckedOnly}&offset=${offset}&limit=${limit}`,
     ),
+  getImage: (id: string) => request<ImageItem>(`/api/images/${id}`),
+  // null id = no unchecked image left
+  getNextImage: (id: string) =>
+    request<{ id: string | null }>(`/api/images/${id}/next`),
   getPrefill: (id: string) => request<Prefill>(`/api/images/${id}/prefill`),
-  getResult: (id: string) => request<DeviceResult>(`/api/images/${id}/result`),
+  getResult: (id: string) =>
+    // null = not annotated yet
+    request<DeviceResult | null>(`/api/images/${id}/result`),
   saveResult: (id: string, fields: ResultFields) =>
     request<DeviceResult>(`/api/images/${id}/result`, {
       method: "PUT",

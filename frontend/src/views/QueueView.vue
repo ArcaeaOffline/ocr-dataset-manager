@@ -24,6 +24,10 @@ const { data, loading } = useRequest(
 const items = computed(() => data.value.items);
 const total = computed(() => data.value.total);
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+
+// thumbnails always exist after import; a load error means the file is
+// gone from disk, which the <img> error event reports
+const thumbFailed = ref<Record<string, true>>({});
 </script>
 
 <template>
@@ -68,10 +72,11 @@ const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
         class="group block overflow-hidden rounded border border-border bg-card hover:border-ring"
       >
         <img
-          v-if="item.has_thumbnail"
+          v-if="!thumbFailed[item.id]"
           :src="api.thumbUrl(item.id)"
           class="aspect-video w-full object-cover"
           loading="lazy"
+          @error="thumbFailed[item.id] = true"
         />
         <div
           v-else

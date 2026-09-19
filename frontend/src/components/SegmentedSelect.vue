@@ -3,6 +3,8 @@ const props = defineProps<{
   label: string;
   options: { value: number | null; label: string }[];
   modelValue: number | null;
+  /** shown below the segments, e.g. a low-confidence prefill warning */
+  hint?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -34,5 +36,6 @@ function pick(value: number | null) {
         {{ opt.label }}
       </button>
     </div>
+    <p v-if="props.hint" class="mt-1 text-xs text-destructive">{{ props.hint }}</p>
   </div>
 </template>
