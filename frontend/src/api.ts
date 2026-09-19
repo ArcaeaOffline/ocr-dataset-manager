@@ -103,15 +103,18 @@ const catalogCache: Record<"songs" | "partners", Promise<unknown> | null> = {
   partners: null,
 };
 
+function cachedCatalog<T>(key: "songs" | "partners", path: string): Promise<T> {
+  // a failed fetch is not memoized, so the next call retries
+  catalogCache[key] ??= request<T>(path).catch((e: Error) => {
+    catalogCache[key] = null;
+    throw e;
+  });
+  return catalogCache[key] as Promise<T>;
+}
+
 export const catalog = {
-  songs: (): Promise<SongEntry[]> => {
-    catalogCache.songs ??= request<SongEntry[]>("/api/catalog/songs");
-    return catalogCache.songs as Promise<SongEntry[]>;
-  },
-  partners: (): Promise<PartnerEntry[]> => {
-    catalogCache.partners ??= request<PartnerEntry[]>("/api/catalog/partners");
-    return catalogCache.partners as Promise<PartnerEntry[]>;
-  },
+  songs: () => cachedCatalog<SongEntry[]>("songs", "/api/catalog/songs"),
+  partners: () => cachedCatalog<PartnerEntry[]>("partners", "/api/catalog/partners"),
   partnerIconUrl: (id: string) => `/api/catalog/partners/${id}/icon`,
 };
 

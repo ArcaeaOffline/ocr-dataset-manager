@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, ref } from "vue";
+import { toast } from "vue-sonner";
 import { api, type ImageItem } from "../api";
+import { useRequest } from "../composables/useRequest";
 
 const uncheckedOnly = ref(true);
 const page = ref(0);
 const pageSize = 50;
-const total = ref(0);
-const items = ref<ImageItem[]>([]);
-const loading = ref(false);
 
-async function load() {
-  loading.value = true;
-  try {
-    const data = await api.listImages(uncheckedOnly.value, page.value * pageSize, pageSize);
-    items.value = data.items;
-    total.value = data.total;
-  } finally {
-    loading.value = false;
-  }
-}
+const { data, loading } = useRequest(
+  () => [uncheckedOnly.value, page.value] as const,
+  ([unchecked, p]) =>
+    api.listImages(unchecked, p * pageSize, pageSize).then((res) => ({
+      items: res.items,
+      total: res.total,
+    })),
+  {
+    initialData: { items: [] as ImageItem[], total: 0 },
+    onError: (e) => toast.error(`加载失败：${e.message}`),
+  },
+);
 
-watch([uncheckedOnly, page], load);
-onMounted(load);
-
-const pageCount = () => Math.max(1, Math.ceil(total.value / pageSize));
+const items = computed(() => data.value.items);
+const total = computed(() => data.value.total);
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 </script>
 
 <template>
@@ -38,7 +38,7 @@ const pageCount = () => Math.max(1, Math.ceil(total.value / pageSize));
         <button class="btn-secondary" :disabled="page === 0 || loading" @click="page--">
           上一页
         </button>
-        <span>{{ page + 1 }} / {{ pageCount() }}</span>
+        <span>{{ page + 1 }} / {{ pageCount }}</span>
         <button
           class="btn-secondary"
           :disabled="(page + 1) * pageSize >= total || loading"

@@ -2,26 +2,28 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue-sonner";
-import { api, catalog, type Prefill, type ResultFields, type SongEntry } from "../api";
+import { api, catalog, type DeviceResult, type Prefill, type ResultFields, type SongEntry } from "../api";
 import NumberField from "../components/NumberField.vue";
 import PartnerPicker from "../components/PartnerPicker.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
 import { computeWarnings } from "../warnings";
+import { useRequest } from "../composables/useRequest";
 
 const route = useRoute();
 const router = useRouter();
 
 const imageId = computed(() => String(route.params.id));
-const filename = ref<string | null>(null);
-const loading = ref(true);
 const imgReady = ref(false);
 const busyAction = ref<"saveChecked" | "saveAndNext" | "skip" | null>(null);
 
-const songCandidates = ref<{ image_id: string; confidence: number }[]>([]);
-const partnerCandidates = ref<{ image_id: string; confidence: number }[]>([]);
-const songs = ref<SongEntry[]>([]);
-const partners = ref<{ id: string }[]>([]);
+interface AnnotateData {
+  prefill: Prefill | null;
+  saved: DeviceResult | null;
+  filename: string | null;
+  songs: SongEntry[];
+  partners: { id: string }[];
+}
 
 const emptyFields = (): ResultFields => ({
   rois_type: null,
@@ -80,52 +82,61 @@ function applyPrefill(prefill: Prefill) {
   form.far_late = prefill.far_late ?? null;
 }
 
-async function load() {
-  loading.value = true;
-  imgReady.value = false;
-  try {
-    const [prefill] = await Promise.all([
-      api.getPrefill(imageId.value).catch((e: Error) => {
+const { data, loading } = useRequest(
+  imageId,
+  async (id): Promise<AnnotateData> => {
+    const [prefill, saved, list, songs, partners] = await Promise.all([
+      api.getPrefill(id).catch((e: Error) => {
         toast.error(`预识别失败：${e.message}`);
         return null;
       }),
-      catalog
-        .songs()
-        .then((s) => (songs.value = s))
-        .catch(() => undefined),
-      catalog
-        .partners()
-        .then((p) => (partners.value = p))
-        .catch(() => undefined),
+      api.getResult(id).catch(() => null),
+      api.listImages(false, 0, 1).catch(() => null),
+      catalog.songs().catch(() => [] as SongEntry[]),
+      catalog.partners().catch(() => [] as { id: string }[]),
     ]);
+    return {
+      prefill,
+      saved,
+      filename: list?.items.find((it) => it.id === id)?.original_filename ?? null,
+      songs,
+      partners,
+    };
+  },
+  {
+    initialData: { prefill: null, saved: null, filename: null, songs: [], partners: [] },
+  },
+);
 
-    if (prefill != null) {
-      applyPrefill(prefill);
-      songCandidates.value = prefill.song_id_candidates ?? [];
-      partnerCandidates.value = prefill.partner_id_candidates ?? [];
-    }
+const songs = computed(() => data.value.songs);
+const partners = computed(() => data.value.partners);
+const filename = computed(() => data.value.filename);
+const songCandidates = computed(() => data.value.prefill?.song_id_candidates ?? []);
+const partnerCandidates = computed(() => data.value.prefill?.partner_id_candidates ?? []);
 
-    try {
-      const saved = await api.getResult(imageId.value);
+watch(
+  data,
+  (loaded) => {
+    Object.assign(form, emptyFields());
+    if (loaded.prefill != null) applyPrefill(loaded.prefill);
+    if (loaded.saved != null) {
       // saved (draft) values win, but empty fields fall back to prefill
-      const merged: ResultFields = { ...emptyFields(), ...prefill };
+      const merged: ResultFields = { ...emptyFields(), ...loaded.prefill };
       for (const key of Object.keys(emptyFields()) as (keyof ResultFields)[]) {
-        const value = saved[key];
+        const value = loaded.saved[key];
         if (value != null) {
           (merged as Record<string, unknown>)[key] = value;
         }
       }
       Object.assign(form, merged);
-    } catch {
-      // not annotated yet; prefill stays
     }
+  },
+  { immediate: true },
+);
 
-    const list = await api.listImages(false, 0, 1);
-    filename.value = list.items.find((it) => it.id === imageId.value)?.original_filename ?? null;
-  } finally {
-    loading.value = false;
-  }
-}
+watch(imageId, () => {
+  imgReady.value = false;
+});
 
 async function save(): Promise<boolean> {
   try {
@@ -186,9 +197,7 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-watch(imageId, load);
 onMounted(() => {
-  load();
   window.addEventListener("keydown", onKeydown);
 });
 onUnmounted(() => {
