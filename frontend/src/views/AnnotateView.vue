@@ -255,10 +255,16 @@ onUnmounted(() => {
     <section
       class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
     >
-      <div class="relative">
+      <!-- on mobile, crop to the annotated region (left 3/4, top 11/12 of
+           a 16:9 screenshot): ROIs end by ~0.70w/0.90h, the rest of the
+           frame is character art; the full frame stays available in the
+           viewer -->
+      <div
+        class="relative overflow-hidden rounded border border-border bg-card lt-lg:aspect-[16/11]"
+      >
         <img
           :src="api.fileUrl(imageId)"
-          class="w-full cursor-zoom-in rounded border border-border bg-card lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
+          class="block w-full max-w-none cursor-zoom-in lt-lg:w-[133.333%] lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
           :alt="filename ?? imageId"
           @load="imgReady = true"
           @click="viewerOpen = true"
