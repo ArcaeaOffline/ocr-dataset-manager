@@ -36,8 +36,8 @@ class Image(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_uuid)
     # path relative to the images storage dir, e.g. "ab/ab3f....jpg"
     relative_path: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    # nullable: backfilled on re-encounter for legacy migrated rows
-    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # content hash, computed on every import; the basis of import dedup
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     # whole-image perceptual hash (average hasher, 16x16), non-unique,
     # used only for "near-duplicate" warnings
     image_hash: Mapped[str | None] = mapped_column(String, nullable=True)

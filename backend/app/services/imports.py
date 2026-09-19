@@ -10,6 +10,7 @@ from pathlib import Path
 
 import cv2
 from sqlalchemy import exists, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import storage
@@ -69,13 +70,21 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
         for file in files:
             try:
                 imported_one = _import_one(session, batch, file)
+                session.commit()
+            except IntegrityError:
+                # a concurrent batch inserted the same content first; the
+                # unique index on sha256 turns the race into a skip
+                session.rollback()
+                batch.skipped_count += 1
+                session.commit()
             except Exception:
+                session.rollback()
                 batch.failed_count += 1
                 logger.exception("failed to import %s", file)
+                session.commit()
             else:
                 if imported_one is not None:
                     imported.append(imported_one)
-            session.commit()
 
         batch.finished_at = datetime.now(UTC)
         session.commit()
