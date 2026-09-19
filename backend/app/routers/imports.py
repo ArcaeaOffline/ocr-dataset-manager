@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -51,7 +50,10 @@ def create_import(req: ImportRequest) -> ImportBatchOut:
     except NotADirectoryError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     with SessionLocal() as session:
-        return ImportBatchOut.of(session.get(ImportBatch, batch_id))
+        batch = session.get(ImportBatch, batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="batch not found")
+        return ImportBatchOut.of(batch)
 
 
 @router.get("")

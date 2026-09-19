@@ -10,6 +10,7 @@ from pathlib import Path
 
 import cv2
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from .. import storage
 from ..db import SessionLocal
@@ -59,6 +60,9 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
     session = SessionLocal()
     try:
         batch = session.get(ImportBatch, batch_id)
+        if batch is None:
+            msg = f"import batch row missing: {batch_id}"
+            raise RuntimeError(msg)
         files = _scan(root, recursive)
         batch.file_count = len(files)
         session.commit()
@@ -66,10 +70,13 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
         imported: list[tuple[str, str]] = []
         for file in files:
             try:
-                imported.append(_import_one(session, batch, file))
+                imported_one = _import_one(session, batch, file)
             except Exception:
                 batch.failed_count += 1
                 logger.exception("failed to import %s", file)
+            else:
+                if imported_one is not None:
+                    imported.append(imported_one)
             session.commit()
 
         batch.finished_at = datetime.now(UTC)
@@ -83,12 +90,14 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
         prefill.warm(imported)
 
 
-def _import_one(session, batch: ImportBatch, file: Path) -> tuple[str, str]:
+def _import_one(
+    session: Session, batch: ImportBatch, file: Path
+) -> tuple[str, str] | None:
     sha = storage.file_sha256(file)
     duplicate = session.scalar(select(Image).where(Image.sha256 == sha))
     if duplicate is not None:
         batch.skipped_count += 1
-        return
+        return None
 
     image_id = new_image_id()
     relative_path, w, h = storage.import_image(file, image_id)

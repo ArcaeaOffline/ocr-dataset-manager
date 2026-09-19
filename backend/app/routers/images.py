@@ -4,11 +4,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
 
+from .. import storage
 from ..db import SessionLocal
 from ..models import DeviceResult, Image, OriginalFilename
 from ..services import prefill
-from .. import storage
 
 router = APIRouter(prefix="/api/images", tags=["images"])
 
@@ -72,7 +73,7 @@ class DeviceResultOut(DeviceResultIn):
 @router.get("")
 def list_images(
     offset: int = 0, limit: int = 50, unchecked_only: bool = False
-) -> dict:
+) -> dict[str, object]:
     limit = min(limit, 200)
     with SessionLocal() as session:
         total = session.scalar(select(func.count(Image.id)))
@@ -98,7 +99,7 @@ def list_images(
         }
 
 
-def _require_image(session, image_id: str) -> Image:
+def _require_image(session: Session, image_id: str) -> Image:
     image = session.get(Image, image_id)
     if image is None:
         raise HTTPException(status_code=404, detail="image not found")
@@ -106,7 +107,7 @@ def _require_image(session, image_id: str) -> Image:
 
 
 @router.get("/{image_id}/prefill")
-def get_prefill(image_id: str) -> dict:
+def get_prefill(image_id: str) -> prefill.PrefillResult:
     with SessionLocal() as session:
         image = _require_image(session, image_id)
         relative_path = image.relative_path

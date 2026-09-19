@@ -5,13 +5,15 @@ DeviceScenario without touching core-ocr. The bundled CRNN remains a
 fallback option.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 import cv2
+from arcaea_offline_ocr.providers import OcrTextProvider
 from cv2.typing import MatLike
 from typing_extensions import override
 
-from arcaea_offline_ocr.providers import OcrTextProvider
+if TYPE_CHECKING:
+    pass
 
 # common look-alike confusions when recognizing digit-only ROIs
 _DIGIT_CONFUSIONS = str.maketrans({
@@ -31,13 +33,13 @@ _DIGIT_CONFUSIONS = str.maketrans({
 
 class RapidOcrTextProvider(OcrTextProvider):
     # rec-only fallback confidence floor; blank ROIs yield low-confidence junk
-    MIN_REC_CONFIDENCE = 0.5
+    MIN_REC_CONFIDENCE: float = 0.5
 
     def __init__(self, *, numeric_only: bool = False) -> None:
         from rapidocr import RapidOCR  # noqa: PLC0415
 
-        self._engine = RapidOCR()
-        self._numeric_only = numeric_only
+        self._engine: RapidOCR = RapidOCR()
+        self._numeric_only: bool = numeric_only
 
     def _normalize(self, text: str) -> str | None:
         text = text.replace("'", "").replace(" ", "")
@@ -47,7 +49,7 @@ class RapidOcrTextProvider(OcrTextProvider):
         return text or None
 
     @staticmethod
-    def _extract_txts(result: Any) -> list[str] | None:
+    def _extract_txts(result: object) -> list[str] | None:
         # rapidocr v2+: RapidOCROutput with .txts; legacy v1: (items, elapses)
         txts = getattr(result, "txts", None)
         if txts is None and isinstance(result, tuple) and result:

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from cv2.typing import MatLike
 
 from .config import IMAGES_DIR, THUMBS_DIR
 
@@ -25,7 +26,7 @@ def file_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def average_image_hash(img_bgr) -> str:
+def average_image_hash(img_bgr: MatLike) -> str:
     """Whole-image perceptual hash (16x16 average hasher, hex-packed bits).
 
     Non-unique by design; only used for near-duplicate warnings."""
@@ -68,7 +69,7 @@ def import_image(source: Path, image_id: str) -> tuple[str, int, int]:
     return (dest.relative_to(IMAGES_DIR).as_posix(), w, h)
 
 
-def save_thumbnail(img_bgr, image_id: str) -> str:
+def save_thumbnail(img_bgr: MatLike, image_id: str) -> str:
     dest = thumb_path_for(image_id)
     dest.parent.mkdir(parents=True, exist_ok=True)
     h, w = img_bgr.shape[:2]

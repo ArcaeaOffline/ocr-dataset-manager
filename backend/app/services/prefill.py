@@ -10,20 +10,30 @@ import re
 import sqlite3
 import threading
 from collections import OrderedDict
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, TypeAlias
 
 import cv2
 import numpy as np
+from arcaea_offline_ocr.crop import crop_xywh
+from cv2.typing import MatLike
 
 from .. import storage
 from ..config import IHDB_PATH
 from ..ocr.custom_rois import CustomRoisT1, CustomRoisT2
 from ..ocr.rapid_ocr_provider import RapidOcrTextProvider
-from arcaea_offline_ocr.crop import crop_xywh
+
+if TYPE_CHECKING:
+    from arcaea_offline_ocr.providers import ImageIdProviderResult
+    from arcaea_offline_ocr.scenarios.device.masker.auto import DeviceRoisMaskerAuto
 
 logger = logging.getLogger(__name__)
 
 CAP = 100
 CANDIDATE_COUNT = 5
+
+PrefillValue = int | str | None | list[int] | list[dict[str, str | float]]
+PrefillResult: TypeAlias = dict[str, PrefillValue]
 
 # T2 renders "L4(P36) E0(P16)": far_late (pure_late) far_early (pure_early);
 # T1 only shows "L1 E5". Parens are optional because rec mangles them
@@ -33,7 +43,7 @@ _EARLY_LATE_T2 = re.compile(
 )
 _EARLY_LATE_T1 = re.compile(r"L\s*(\d+)\s*[-]?\s*E\s*(\d+)", re.IGNORECASE)
 
-_cache: OrderedDict[str, dict] = OrderedDict()
+_cache: OrderedDict[str, PrefillResult] = OrderedDict()
 _cache_lock = threading.Lock()
 # serializes OCR engine + ihdb access; single-user tool, throughput is
 # irrelevant next to correctness. RLock: compute() holds it across the
@@ -95,13 +105,17 @@ def _parse_early_late(
     return {"far_late": int(match.group(1)), "far_early": int(match.group(2))}
 
 
-def _mask_vote_counts(masker, roi, method_names: list[str]) -> list[int]:
+def _mask_vote_counts(
+    masker: "DeviceRoisMaskerAuto", roi: MatLike, method_names: list[str]
+) -> list[int]:
     return [
         int(np.count_nonzero(getattr(masker, name)(roi))) for name in method_names
     ]
 
 
-def _candidates_to_dicts(results) -> list[dict]:
+def _candidates_to_dicts(
+    results: Sequence["ImageIdProviderResult"],
+) -> list[dict[str, str | float]]:
     return [
         {"image_id": r.image_id, "confidence": r.confidence}
         for r in sorted(results, key=lambda r: r.confidence, reverse=True)[
@@ -110,7 +124,7 @@ def _candidates_to_dicts(results) -> list[dict]:
     ]
 
 
-def compute(image_id: str, relative_path: str) -> dict:
+def compute(_image_id: str, relative_path: str) -> PrefillResult:
     from arcaea_offline_ocr.crop import CropBlackEdges
     from arcaea_offline_ocr.providers import (
         ImageCategory,
@@ -136,7 +150,6 @@ def compute(image_id: str, relative_path: str) -> dict:
             raise ValueError(msg)
         cropped = CropBlackEdges.crop_or_original(img)
 
-        rois_type: int | None = None
         selector_result = DeviceRoisAutoSelector.select(cropped, None)
         if selector_result is DeviceRoisAutoSelectorResult.UNKNOWN:
             # layout undetectable; everything else stays empty
@@ -145,7 +158,8 @@ def compute(image_id: str, relative_path: str) -> dict:
             rois_type = 0
             rois = CustomRoisT1(cropped.shape[1], cropped.shape[0])
             masker = DeviceRoisMaskerAutoT1()
-        elif selector_result is DeviceRoisAutoSelectorResult.T2:
+        else:
+            # only T1/T2 remain after the UNKNOWN early return
             rois_type = 1
             rois = CustomRoisT2(cropped.shape[1], cropped.shape[0])
             masker = DeviceRoisMaskerAutoT2()
@@ -154,39 +168,43 @@ def compute(image_id: str, relative_path: str) -> dict:
         provider = _get_text_provider()
         raw_provider = _get_raw_text_provider()
 
-        def text_int(roi) -> int | None:
+        def text_int(roi: MatLike) -> int | None:
             return _parse_int(provider.result(roi))
 
-        prefill: dict = {
+        rating_class_votes = _mask_vote_counts(
+            masker,
+            extractor.rating_class,
+            [
+                "rating_class_pst",
+                "rating_class_prs",
+                "rating_class_ftr",
+                "rating_class_byd",
+                "rating_class_etr",
+            ],
+        )
+        clear_status_votes = _mask_vote_counts(
+            masker,
+            extractor.clear_status,
+            [
+                "clear_status_track_lost",
+                "clear_status_track_complete",
+                "clear_status_full_recall",
+                "clear_status_pure_memory",
+            ],
+        )
+        prefill: PrefillResult = {
             "rois_type": rois_type,
             "score": text_int(extractor.score),
             "pure": text_int(extractor.pure),
             "far": text_int(extractor.far),
             "lost": text_int(extractor.lost),
             "max_recall": text_int(extractor.max_recall),
-            "rating_class_votes": _mask_vote_counts(
-                masker,
-                extractor.rating_class,
-                [
-                    "rating_class_pst",
-                    "rating_class_prs",
-                    "rating_class_ftr",
-                    "rating_class_byd",
-                    "rating_class_etr",
-                ],
-            ),
-            "clear_status_votes": _mask_vote_counts(
-                masker,
-                extractor.clear_status,
-                [
-                    "clear_status_track_lost",
-                    "clear_status_track_complete",
-                    "clear_status_full_recall",
-                    "clear_status_pure_memory",
-                ],
-            ),
+            "rating_class_votes": rating_class_votes,
+            "clear_status_votes": clear_status_votes,
             "high_score": _parse_int(
-                raw_provider.result_rec_only(crop_xywh(cropped, rois.high_score.rounded()))
+                raw_provider.result_rec_only(
+                    crop_xywh(cropped, rois.high_score.rounded())
+                )
             ),
             "high_score_delta": _parse_int(
                 raw_provider.result_rec_only(
@@ -194,7 +212,9 @@ def compute(image_id: str, relative_path: str) -> dict:
                 )
             ),
             "pure_shiny": _parse_int(
-                raw_provider.result_rec_only(crop_xywh(cropped, rois.pure_shiny.rounded()))
+                raw_provider.result_rec_only(
+                    crop_xywh(cropped, rois.pure_shiny.rounded())
+                )
             ),
         }
 
@@ -207,10 +227,10 @@ def compute(image_id: str, relative_path: str) -> dict:
         for key in ("far_late", "pure_late", "far_early", "pure_early"):
             prefill.setdefault(key, None)
         prefill["rating_class"] = max(
-            enumerate(prefill["rating_class_votes"]), key=lambda it: it[1]
+            enumerate(rating_class_votes), key=lambda it: it[1]
         )[0]
         prefill["clear_status"] = max(
-            enumerate(prefill["clear_status_votes"]), key=lambda it: it[1]
+            enumerate(clear_status_votes), key=lambda it: it[1]
         )[0]
 
         with sqlite3.connect(IHDB_PATH) as conn:
@@ -240,7 +260,7 @@ def compute(image_id: str, relative_path: str) -> dict:
         return prefill
 
 
-def get(image_id: str, relative_path: str) -> dict:
+def get(image_id: str, relative_path: str) -> PrefillResult:
     with _cache_lock:
         if image_id in _cache:
             _cache.move_to_end(image_id)

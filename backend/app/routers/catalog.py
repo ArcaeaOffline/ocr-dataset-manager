@@ -25,9 +25,11 @@ _PARTNER_ID_RE = re.compile(r"^\d+u?$")
 
 
 @lru_cache(maxsize=4)
-def _parse_songlist(path: Path, mtime: int) -> list[dict]:
+def _parse_songlist(path: Path, _mtime: int) -> list[dict[str, str]]:
+    # _mtime is unused in the body; it is the cache key that triggers a
+    # re-parse when the songlist file changes on disk
     data = json.loads(path.read_text(encoding="utf-8"))
-    songs = []
+    songs: list[dict[str, str]] = []
     for entry in data.get("songs", []):
         song_id = entry.get("id")
         title = (entry.get("title_localized") or {}).get("en")
@@ -37,19 +39,14 @@ def _parse_songlist(path: Path, mtime: int) -> list[dict]:
 
 
 @router.get("/songs")
-def list_songs() -> list[dict]:
+def list_songs() -> list[dict[str, str]]:
     if not SONGLIST_PATH.exists():
         return []
     return _parse_songlist(SONGLIST_PATH, int(SONGLIST_PATH.stat().st_mtime))
 
 
-def _partner_sort_key(path: Path):
-    stem = path.stem
-    return (int(stem.rstrip("u")), stem.endswith("u"))
-
-
 @router.get("/partners")
-def list_partners() -> list[dict]:
+def list_partners() -> list[dict[str, str]]:
     ids = sorted(
         (p.stem for p in PARTNER_ICONS_DIR.iterdir() if p.is_file()),
         key=lambda s: (int(s.rstrip("u")), s.endswith("u")),
