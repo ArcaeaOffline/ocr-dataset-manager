@@ -201,11 +201,11 @@ onUnmounted(() => {
     <i class="i-lucide-loader-circle size-6 animate-spin" />
   </div>
   <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
-    <section>
+    <section class="lg:sticky lg:top-4 lg:self-start">
       <div class="relative">
         <img
           :src="api.fileUrl(imageId)"
-          class="w-full rounded border border-border bg-card"
+          class="w-full rounded border border-border bg-card lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
           :alt="filename ?? imageId"
           @load="imgReady = true"
         />
