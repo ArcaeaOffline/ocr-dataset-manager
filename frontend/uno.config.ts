@@ -26,6 +26,8 @@ export default defineConfig({
       destructive: {
         DEFAULT: "var(--destructive)",
         fg: "var(--destructive-fg)",
+        soft: "var(--destructive-soft)",
+        border: "var(--destructive-border)",
       },
       border: "var(--border)",
       input: "var(--input)",

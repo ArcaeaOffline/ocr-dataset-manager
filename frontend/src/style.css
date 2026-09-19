@@ -11,6 +11,9 @@
   --muted-fg: oklch(0.556 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-fg: oklch(0.985 0 0);
+  /* UnoCSS alpha modifiers silently drop on var() colors; pre-mix instead */
+  --destructive-soft: color-mix(in oklab, var(--destructive) 10%, transparent);
+  --destructive-border: color-mix(in oklab, var(--destructive) 45%, transparent);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -29,6 +32,8 @@
     --muted-fg: oklch(0.708 0 0);
     --destructive: oklch(0.704 0.191 22.216);
     --destructive-fg: oklch(0.985 0 0);
+    --destructive-soft: color-mix(in oklab, var(--destructive) 15%, transparent);
+    --destructive-border: color-mix(in oklab, var(--destructive) 45%, transparent);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);

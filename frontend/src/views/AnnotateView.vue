@@ -197,11 +197,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="loading"
-    class="grid place-items-center py-24 text-muted-foreground"
-    aria-busy="true"
-  >
+  <div v-if="loading" class="grid place-items-center py-24 text-muted-foreground" aria-busy="true">
     <i class="i-lucide-loader-circle size-6 animate-spin" />
   </div>
   <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
@@ -267,7 +263,7 @@ onUnmounted(() => {
 
       <div
         v-if="warnings.length > 0"
-        class="rounded border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+        class="rounded border border-destructive-border bg-destructive-soft p-3 text-sm text-destructive"
       >
         <div class="mb-1 flex items-center gap-1.5 font-medium">
           <i class="i-lucide-triangle-alert size-4" />

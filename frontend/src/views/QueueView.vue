@@ -56,7 +56,11 @@ const pageCount = () => Math.max(1, Math.ceil(total.value / pageSize));
     >
       <i class="i-lucide-loader-circle size-6 animate-spin" />
     </div>
-    <div v-else class="grid grid-cols-5 gap-3" :class="{ 'pointer-events-none opacity-50': loading }">
+    <div
+      v-else
+      class="grid grid-cols-5 gap-3"
+      :class="{ 'pointer-events-none opacity-50': loading }"
+    >
       <RouterLink
         v-for="item in items"
         :key="item.id"

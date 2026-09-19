@@ -21,14 +21,17 @@ export function computeWarnings(r: ResultFields): string[] {
     }
   }
 
-  if (
-    r.pure != null &&
-    r.far != null &&
-    r.lost != null &&
-    r.max_recall != null &&
-    r.max_recall !== r.pure + r.far + r.lost
-  ) {
-    warnings.push(`max_recall ≠ pure+far+lost (${r.max_recall} ≠ ${r.pure}+${r.far}+${r.lost})`);
+  if (r.pure != null && r.far != null && r.lost != null && r.max_recall != null) {
+    if (r.lost === 0 && r.max_recall !== r.pure + r.far) {
+      warnings.push(
+        `无 lost 时 max_recall 应等于 pure+far (${r.max_recall} ≠ ${r.pure}+${r.far})`,
+      );
+    }
+    if (r.lost > 0 && r.max_recall > r.pure + r.far) {
+      warnings.push(
+        `有 lost 时 max_recall 不可能超过 pure+far (${r.max_recall} > ${r.pure}+${r.far})`,
+      );
+    }
   }
 
   if (r.score === 0) warnings.push("score 为 0");
