@@ -38,7 +38,6 @@ reportUnannotatedClassAttribute = "none"
 
 # alembic's upgrade()/downgrade() template signature leaves op unused in
 # most revisions
-[[tool.basedpyright.lint.rules.reportUnusedParameter]]
-level = "none"
-scope = "files"
-files = ["backend/migrations/**"]
+[[tool.basedpyright.executionEnvironments]]
+root = "backend/migrations"
+reportUnusedParameter = "none"
