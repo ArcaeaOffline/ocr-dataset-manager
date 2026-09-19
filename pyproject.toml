@@ -12,3 +12,33 @@ members = ["backend"]
 
 [tool.uv.sources]
 arcaea-offline-ocr = { path = "../core-ocr" }
+
+[tool.ruff.lint]
+# docs.astral.sh/ruff "popular rules" example set: pycodestyle, pyflakes,
+# isort, pyupgrade, flake8-bugbear, flake8-simplify
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.basedpyright]
+typeCheckingMode = "recommended"
+exclude = ["scripts"]
+reportUnusedCallResult = "none"
+
+# Any/Unknown cascade comes from untyped third parties (rapidocr, cv2);
+# not fixable on our side
+reportAny = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+
+# SQLAlchemy declarative dunders (__tablename__, __table_args__) can't take
+# useful annotations
+reportUnannotatedClassAttribute = "none"
+
+# alembic's upgrade()/downgrade() template signature leaves op unused in
+# most revisions
+[[tool.basedpyright.lint.rules.reportUnusedParameter]]
+level = "none"
+scope = "files"
+files = ["backend/migrations/**"]
