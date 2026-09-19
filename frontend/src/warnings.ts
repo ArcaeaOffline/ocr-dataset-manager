@@ -23,9 +23,7 @@ export function computeWarnings(r: ResultFields): string[] {
 
   if (r.pure != null && r.far != null && r.lost != null && r.max_recall != null) {
     if (r.lost === 0 && r.max_recall !== r.pure + r.far) {
-      warnings.push(
-        `无 lost 时 max_recall 应等于 pure+far (${r.max_recall} ≠ ${r.pure}+${r.far})`,
-      );
+      warnings.push(`无 lost 时 max_recall 应等于 pure+far (${r.max_recall} ≠ ${r.pure}+${r.far})`);
     }
     if (r.lost > 0 && r.max_recall > r.pure + r.far) {
       warnings.push(

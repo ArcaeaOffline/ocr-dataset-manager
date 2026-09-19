@@ -1,5 +1,10 @@
-/* semantic design tokens, shadcn neutral palette (oklch) */
+/* semantic design tokens, shadcn neutral palette (oklch).
+   default follows the system preference; data-theme="light"/"dark" on
+   :root pins one side. The dark block is duplicated for the override and
+   the media query — keep the two in sync. UnoCSS alpha modifiers drop on
+   var() colors, so color mixes are precomputed here */
 :root {
+  color-scheme: light;
   --bg: oklch(1 0 0);
   --fg: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -11,7 +16,6 @@
   --muted-fg: oklch(0.556 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-fg: oklch(0.985 0 0);
-  /* UnoCSS alpha modifiers silently drop on var() colors; pre-mix instead */
   --destructive-soft: color-mix(in oklab, var(--destructive) 10%, transparent);
   --destructive-border: color-mix(in oklab, var(--destructive) 45%, transparent);
   --border: oklch(0.922 0 0);
@@ -20,7 +24,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: oklch(0.145 0 0);
     --fg: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -38,6 +43,40 @@
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.145 0 0);
+  --fg: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-fg: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-fg: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-fg: oklch(0.708 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-fg: oklch(0.985 0 0);
+  --destructive-soft: color-mix(in oklab, var(--destructive) 15%, transparent);
+  --destructive-border: color-mix(in oklab, var(--destructive) 45%, transparent);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+/* mounted only while the theme switches so the change eases in instead
+   of snapping; removed again so hover and friends stay instant */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    fill 0.25s ease,
+    stroke 0.25s ease !important;
 }
 
 body {
