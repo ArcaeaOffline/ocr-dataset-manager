@@ -51,9 +51,7 @@ def start_import(source_path: str, *, recursive: bool = False) -> str:
 
 def _scan(root: Path, recursive: bool) -> list[Path]:
     it = root.rglob("*") if recursive else root.iterdir()
-    return sorted(
-        p for p in it if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS
-    )
+    return sorted(p for p in it if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS)
 
 
 def _run(batch_id: str, root: Path, recursive: bool) -> None:
@@ -119,8 +117,6 @@ def _import_one(
             import_batch_id=batch.id,
         )
     )
-    session.add(
-        OriginalFilename(image_id=image_id, original_filename=file.name)
-    )
+    session.add(OriginalFilename(image_id=image_id, original_filename=file.name))
     batch.imported_count += 1
     return image_id, relative_path

@@ -16,19 +16,21 @@ if TYPE_CHECKING:
     pass
 
 # common look-alike confusions when recognizing digit-only ROIs
-_DIGIT_CONFUSIONS = str.maketrans({
-    "O": "0",
-    "o": "0",
-    "D": "0",
-    "I": "1",
-    "l": "1",
-    "|": "1",
-    "Z": "2",
-    "z": "2",
-    "S": "5",
-    "s": "5",
-    "B": "8",
-})
+_DIGIT_CONFUSIONS = str.maketrans(
+    {
+        "O": "0",
+        "o": "0",
+        "D": "0",
+        "I": "1",
+        "l": "1",
+        "|": "1",
+        "Z": "2",
+        "z": "2",
+        "S": "5",
+        "s": "5",
+        "B": "8",
+    }
+)
 
 
 class RapidOcrTextProvider(OcrTextProvider):
@@ -68,8 +70,10 @@ class RapidOcrTextProvider(OcrTextProvider):
             rec = self._engine(img, use_det=False, use_cls=False, use_rec=True)
             rec_txts = getattr(rec, "txts", None)
             rec_scores = getattr(rec, "scores", None)
-            if rec_txts and rec_scores is not None and max(rec_scores) >= (
-                self.MIN_REC_CONFIDENCE
+            if (
+                rec_txts
+                and rec_scores is not None
+                and max(rec_scores) >= (self.MIN_REC_CONFIDENCE)
             ):
                 txts = list(rec_txts)
         if not txts:

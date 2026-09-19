@@ -84,13 +84,8 @@ can be reset any time by deleting `data/odm.sqlite3`.
   history of how it got that way.
 - Code comments state current behavior and constraints only; no
   change-narration ("previously X", "no longer Y").
-- Python is linted by ruff and type-checked by basedpyright (config in
-  the root `pyproject.toml`); ruff format is not adopted, code follows
-  ruff-style idiom. The frontend is formatted by oxfmt (run
-  `pnpm format`).
-- New alembic revisions inherit the modernized `script.py.mako` template
-  (`X | None`, `collections.abc`); keep them ruff/basedpyright clean like
-  the rest of the backend.
+- Python uses `ruff` and `basedpyright` (config in root `pyproject.toml`).
+  Frontend uses oxc tools.
 
 ## Known limitations / roadmap
 

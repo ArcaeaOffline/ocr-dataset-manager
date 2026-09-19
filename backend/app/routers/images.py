@@ -125,10 +125,7 @@ def get_result(image_id: str) -> DeviceResultOut:
         if result is None:
             raise HTTPException(status_code=404, detail="not annotated yet")
         return DeviceResultOut(
-            **{
-                c: getattr(result, c)
-                for c in DeviceResultIn.model_fields
-            },
+            **{c: getattr(result, c) for c in DeviceResultIn.model_fields},
             image_id=image_id,
             updated_at=result.updated_at.replace(tzinfo=UTC),
         )

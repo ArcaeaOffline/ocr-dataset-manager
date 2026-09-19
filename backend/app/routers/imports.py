@@ -32,9 +32,7 @@ class ImportBatchOut(BaseModel):
             source_path=batch.source_path,
             started_at=batch.started_at.replace(tzinfo=UTC),
             finished_at=(
-                batch.finished_at.replace(tzinfo=UTC)
-                if batch.finished_at
-                else None
+                batch.finished_at.replace(tzinfo=UTC) if batch.finished_at else None
             ),
             file_count=batch.file_count,
             imported_count=batch.imported_count,

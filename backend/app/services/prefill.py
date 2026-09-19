@@ -82,9 +82,7 @@ def _parse_int(text: str | None) -> int | None:
     return int(digits) if digits.isdigit() else None
 
 
-def _parse_early_late(
-    text: str | None, rois_type: int
-) -> dict[str, int | None] | None:
+def _parse_early_late(text: str | None, rois_type: int) -> dict[str, int | None] | None:
     if not text:
         return None
     # rec renders the zero in "L0(P22)" as letter O more often than not
@@ -108,9 +106,7 @@ def _parse_early_late(
 def _mask_vote_counts(
     masker: "DeviceRoisMaskerAuto", roi: MatLike, method_names: list[str]
 ) -> list[int]:
-    return [
-        int(np.count_nonzero(getattr(masker, name)(roi))) for name in method_names
-    ]
+    return [int(np.count_nonzero(getattr(masker, name)(roi))) for name in method_names]
 
 
 def _candidates_to_dicts(
