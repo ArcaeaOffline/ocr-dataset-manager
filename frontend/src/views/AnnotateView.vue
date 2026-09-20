@@ -58,11 +58,11 @@ const roisTypeOptions = [
 ];
 const ratingClassOptions = ["PST", "PRS", "FTR", "BYD", "ETR"].map((label, i) => ({
   value: i,
-  label: `${i} ${label}`,
+  label,
 }));
-const clearStatusOptions = ["LOST", "CLEAR", "FR", "PM"].map((label, i) => ({
+const clearStatusOptions = ["TL", "TC", "FR", "PM"].map((label, i) => ({
   value: i,
-  label: `${i} ${label}`,
+  label,
 }));
 
 function applyPrefill(prefill: Prefill) {
