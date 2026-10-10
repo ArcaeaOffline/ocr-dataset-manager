@@ -10,7 +10,8 @@ pre-recognition, human review, SQLite storage.
 
 ```
 backend/          FastAPI + SQLAlchemy + SQLite, uv workspace member
-  app/ocr/        text provider (RapidOCR), custom ROIs
+  app/ocr/        text provider (RapidOCR), custom ROIs, layout probe
+  app/ocr/b30/    B30/B50 bot layout definitions and card recognizers
   app/services/   import pipeline, prefill cache
   app/routers/    HTTP surface
   migrations/     alembic (auto-upgrades on app startup)
@@ -68,11 +69,25 @@ can be reset any time by deleting `data/odm.sqlite3`.
 - **Storage rule**: the database only stores human-confirmed values.
   OCR candidates, confidences, mask votes are recomputed on demand and
   cached in an LRU (`backend/app/services/prefill.py`), never persisted.
-  "Not annotated yet" is represented by the absence of a
-  `device_results` row, not by a status column.
-- **device vs b30**: `device_results` is strictly 1:1 with an image. The
-  planned B30/B50 mode gets its own `b30_components` table (one row per
-  component) — do not add per-component concepts to the device table.
+  "Not annotated yet" is represented by the absence of a row in the
+  relevant results table, not by a status column.
+- **device vs b30**: `device_results` is strictly 1:1 with an image.
+  B30/B50 screenshots get their own `b30_results` (1:1, carries the
+  confirmed bot layout) and `b30_components` (one row per card) tables —
+  do not add per-component concepts to the device table. A B30 image
+  counts as fully reviewed when every component its layout expects has a
+  checked row; there is no image-level checked flag.
+- **B30/B50 layouts** live in `backend/app/ocr/b30/`: each `B30Layout`
+  describes a bot's canonical canvas, card grid, and per-card ROIs, all
+  factor-scaled by `width / canvas_width`. `layout_probe.py` classifies
+  a screenshot by aspect ratio plus background-independent structural
+  checks; the probe is only a prefill proposal and never persists.
+  `chieri_v4` delegates card cutting and OCR to core-ocr's
+  `ChieriBotV4Best30Scenario`; yurisaki and arcaeaonline have local
+  recognizers. Card OCR is computed on request per card (~0.4s) and is
+  never bulk-warmed. Clear-type badges map onto the st3 clearType values
+  (0-5, including easy/hard clear); arcaeaonline cards render no rating
+  class (their level diamond is difficulty-agnostic) and no P/F/L.
 - Text recognition intentionally uses RapidOCR (PaddleOCR onnx models)
   instead of the CRNN bundled with core-ocr; the CRNN provider remains
   available as a fallback.
@@ -90,7 +105,8 @@ can be reset any time by deleting `data/odm.sqlite3`.
 ## Known limitations / roadmap
 
 - No export path from SQLite to training formats yet.
-- B30/B50 image mode not implemented (backend abstraction in core-ocr
-  already exists: `scenarios/b30`).
+- B30/B50 bot layouts covered: chieri v4, yurisaki, arcaeaonline
+  (b30/b50). Other bot renderings probe as unclassified and need a new
+  `B30Layout` + recognizer.
 - Near-duplicate warnings: the perceptual hash column is populated but
   nothing compares it yet.

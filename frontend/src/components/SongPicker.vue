@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Candidate, SongEntry } from "../api";
 import Modal from "./Modal.vue";
 
@@ -14,6 +14,13 @@ const emit = defineEmits<{
 }>();
 
 const text = ref(props.modelValue ?? "");
+// prefill loads arrive after mount (and card switches swap the proposal)
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value !== text.value.trim()) text.value = value ?? "";
+  },
+);
 const open = ref(false);
 const panelOpen = ref(false);
 const query = ref("");

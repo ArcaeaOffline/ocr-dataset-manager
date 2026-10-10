@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { toast } from "vue-sonner";
-import { api, type ImageItem } from "../api";
+import { api, type ImageItem, type QueueKind } from "../api";
 import { useRequest } from "../composables/useRequest";
 
 const uncheckedOnly = ref(true);
+const kind = ref<QueueKind | null>(null);
 const page = ref(0);
 const pageSize = 50;
 
+const kindOptions: { value: QueueKind | null; label: string }[] = [
+  { value: null, label: "全部" },
+  { value: "device", label: "device" },
+  { value: "b30", label: "B30/50" },
+  { value: "unclassified", label: "未分类" },
+];
+
 const { data, loading } = useRequest(
-  () => [uncheckedOnly.value, page.value] as const,
-  ([unchecked, p]) =>
-    api.listImages(unchecked, p * pageSize, pageSize).then((res) => ({
+  () => [uncheckedOnly.value, kind.value, page.value] as const,
+  ([unchecked, k, p]) =>
+    api.listImages(unchecked, p * pageSize, pageSize, k).then((res) => ({
       items: res.items,
       total: res.total,
     })),
@@ -37,6 +45,25 @@ const thumbFailed = ref<Record<string, true>>({});
         <input v-model="uncheckedOnly" type="checkbox" />
         只看未标注
       </label>
+      <div class="flex items-center gap-1">
+        <button
+          v-for="opt in kindOptions"
+          :key="String(opt.value)"
+          type="button"
+          class="cursor-pointer rounded border px-2 py-0.5 text-xs"
+          :class="
+            kind === opt.value
+              ? 'border-primary bg-primary text-primary-fg'
+              : 'border-border bg-secondary text-secondary-fg'
+          "
+          @click="
+            page = 0;
+            kind = opt.value;
+          "
+        >
+          {{ opt.label }}
+        </button>
+      </div>
       <span class="whitespace-nowrap text-muted-foreground">共 {{ total }} 张</span>
       <span class="ml-auto flex items-center gap-2 whitespace-nowrap">
         <button class="btn-secondary" :disabled="page === 0 || loading" @click="page--">
@@ -84,8 +111,16 @@ const thumbFailed = ref<Record<string, true>>({});
         >
           无缩略图
         </div>
-        <div class="truncate px-2 py-1 text-xs text-muted-foreground group-hover:text-foreground">
-          {{ item.original_filename ?? item.id }}
+        <div
+          class="flex items-center justify-between gap-1 px-2 py-1 text-xs text-muted-foreground group-hover:text-foreground"
+        >
+          <span class="truncate">{{ item.original_filename ?? item.id }}</span>
+          <span
+            v-if="item.kind !== 'device'"
+            class="shrink-0 rounded border border-border px-1 text-[10px]"
+          >
+            {{ item.kind === "b30" ? "B30/50" : "未分类" }}
+          </span>
         </div>
       </RouterLink>
     </div>

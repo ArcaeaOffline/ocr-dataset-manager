@@ -2,7 +2,15 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue-sonner";
-import { api, catalog, type DeviceResult, type Prefill, type ResultFields, type SongEntry } from "../api";
+import {
+  api,
+  catalog,
+  type DeviceResult,
+  type Prefill,
+  type ResultFields,
+  type SongEntry,
+} from "../api";
+import B30Annotate from "../components/B30Annotate.vue";
 import NumberField from "../components/NumberField.vue";
 import PartnerPicker from "../components/PartnerPicker.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
@@ -22,6 +30,7 @@ const busyAction = ref<"saveChecked" | "saveAndNext" | "skip" | null>(null);
 
 interface AnnotateData {
   prefill: Prefill | null;
+  b30Layout: string | null;
   saved: DeviceResult | null;
   filename: string | null;
   songs: SongEntry[];
@@ -88,7 +97,7 @@ function applyPrefill(prefill: Prefill) {
 const { data, loading } = useRequest(
   imageId,
   async (id): Promise<AnnotateData> => {
-    const [prefill, saved, image, songs, partners] = await Promise.all([
+    const [prefillResponse, saved, image, songs, partners] = await Promise.all([
       api.getPrefill(id).catch((e: Error) => {
         toast.error(`预识别失败：${e.message}`);
         return null;
@@ -99,7 +108,8 @@ const { data, loading } = useRequest(
       catalog.partners().catch(() => [] as { id: string }[]),
     ]);
     return {
-      prefill,
+      prefill: prefillResponse?.kind === "device" ? prefillResponse.prefill : null,
+      b30Layout: prefillResponse?.kind === "b30" ? prefillResponse.layout : null,
       saved,
       filename: image?.original_filename ?? null,
       songs,
@@ -107,9 +117,19 @@ const { data, loading } = useRequest(
     };
   },
   {
-    initialData: { prefill: null, saved: null, filename: null, songs: [], partners: [] },
+    initialData: {
+      prefill: null,
+      b30Layout: null,
+      saved: null,
+      filename: null,
+      songs: [],
+      partners: [],
+    },
   },
 );
+
+// B30/B50 screenshots render as a grid of cards and get their own flow
+const isB30 = computed(() => !loading.value && data.value.b30Layout != null);
 
 const songs = computed(() => data.value.songs);
 const partners = computed(() => data.value.partners);
@@ -248,7 +268,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="grid place-items-center py-24 text-muted-foreground" aria-busy="true">
+  <B30Annotate v-if="isB30" />
+  <div
+    v-else-if="loading"
+    class="grid place-items-center py-24 text-muted-foreground"
+    aria-busy="true"
+  >
     <i class="i-lucide-loader-circle size-6 animate-spin" />
   </div>
   <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
@@ -400,9 +425,7 @@ onUnmounted(() => {
           >
             <i class="i-lucide-zoom-out size-4" />
           </button>
-          <span class="w-8 text-center text-xs tabular-nums">
-            {{ ZOOM_LEVELS[zoomIdx] }}x
-          </span>
+          <span class="w-8 text-center text-xs tabular-nums"> {{ ZOOM_LEVELS[zoomIdx] }}x </span>
           <button
             type="button"
             class="cursor-pointer rounded p-1.5 hover:bg-white/10 disabled:opacity-40"
@@ -411,7 +434,11 @@ onUnmounted(() => {
           >
             <i class="i-lucide-zoom-in size-4" />
           </button>
-          <button type="button" class="cursor-pointer rounded p-1.5 hover:bg-white/10" @click="viewerOpen = false">
+          <button
+            type="button"
+            class="cursor-pointer rounded p-1.5 hover:bg-white/10"
+            @click="viewerOpen = false"
+          >
             <i class="i-lucide-x size-4" />
           </button>
         </div>

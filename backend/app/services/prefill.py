@@ -1,16 +1,16 @@
-"""On-demand pre-annotation for device screenshots.
+"""On-demand pre-annotation for device screenshots and B30/B50 cards.
 
-Everything computed here is ephemeral: an LRU cache keeps the last CAP
-results in memory so flipping between recent images is instant, but
-nothing is persisted - the database only stores human-affirmed values
-(device_results). A cache miss simply recomputes (~1-2s/image)."""
+Everything computed here is ephemeral: LRU caches keep the last results
+in memory so flipping between recent images is instant, but nothing is
+persisted - the database only stores human-affirmed values
+(device_results / b30_results / b30_components). A cache miss simply
+recomputes (~0.4s per B50 card, ~1-2s per device image)."""
 
 import logging
 import re
 import sqlite3
 import threading
 from collections import OrderedDict
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypeAlias
 
 import cv2
@@ -20,21 +20,24 @@ from cv2.typing import MatLike
 
 from .. import storage
 from ..config import IHDB_PATH
+from ..ocr.b30 import B30LayoutOcr, ComponentOcr, make_recognizer
+from ..ocr.b30.providers import OcrProviders
 from ..ocr.custom_rois import CustomRoisT1, CustomRoisT2
+from ..ocr.layout_probe import DEVICE, probe
+from ..ocr.parsing import parse_int
+from ..ocr.ranking import rank_candidates
 from ..ocr.rapid_ocr_provider import RapidOcrTextProvider
 
 if TYPE_CHECKING:
-    from arcaea_offline_ocr.providers.ihdb import ImageHashDatabaseIdProviderResult
+    from arcaea_offline_ocr.providers import ImageHashDatabaseIdProvider
     from arcaea_offline_ocr.scenarios.device.masker.auto import DeviceRoisMaskerAuto
 
 logger = logging.getLogger(__name__)
 
 CAP = 100
-CANDIDATE_COUNT = 5
 
 PrefillValue = int | str | None | list[int] | list[dict[str, str | float]]
 PrefillResult: TypeAlias = dict[str, PrefillValue]
-
 # T2 renders "L4(P36) E0(P16)": far_late (pure_late) far_early (pure_early);
 # T1 only shows "L1 E5". Parens are optional because rec mangles them
 _EARLY_LATE_T2 = re.compile(
@@ -72,16 +75,6 @@ def _get_raw_text_provider() -> RapidOcrTextProvider:
         return _raw_text_provider
 
 
-def _parse_int(text: str | None) -> int | None:
-    if not text:
-        return None
-    digits = text.replace("'", "").replace(" ", "").lstrip("+")
-    if not digits.isdigit():
-        # rec sometimes renders lone digits as look-alike letters (O -> 0)
-        digits = digits.translate(str.maketrans({"O": "0", "o": "0", "D": "0"}))
-    return int(digits) if digits.isdigit() else None
-
-
 def _parse_early_late(text: str | None, rois_type: int) -> dict[str, int | None] | None:
     if not text:
         return None
@@ -107,42 +100,6 @@ def _mask_vote_counts(
     masker: "DeviceRoisMaskerAuto", roi: MatLike, method_names: list[str]
 ) -> list[int]:
     return [int(np.count_nonzero(getattr(masker, name)(roi))) for name in method_names]
-
-
-def _rank_candidates(
-    results: Sequence["ImageHashDatabaseIdProviderResult"],
-) -> tuple[str | None, list[dict[str, str | float]]]:
-    """Merge the per-hash-type lookups into one ranking.
-
-    An id matched by several hash types gets one entry whose confidence
-    is the weighted average over the types it actually matched with
-    (pHash/DCT weighs 4, difference 2, average 1). Returns
-    the top id and the top CANDIDATE_COUNT distinct ids for the API."""
-    from arcaea_offline_ocr.providers.ihdb import ImageHashType  # noqa: PLC0415
-
-    weights = {
-        ImageHashType.AVERAGE: 1,
-        ImageHashType.DIFFERENCE: 2,
-        ImageHashType.DCT: 4,
-    }
-    by_id: dict[str, list[tuple[int, float]]] = {}
-    for r in results:
-        weight = weights.get(r.image_hash_type, 1)
-        by_id.setdefault(r.image_id, []).append((weight, r.confidence))
-    ranked = sorted(
-        (
-            (image_id, sum(w * c for w, c in m) / sum(w for w, _ in m))
-            for image_id, m in by_id.items()
-        ),
-        key=lambda it: it[1],
-        reverse=True,
-    )
-    if not ranked:
-        return None, []
-    return ranked[0][0], [
-        {"image_id": image_id, "confidence": confidence}
-        for image_id, confidence in ranked[:CANDIDATE_COUNT]
-    ]
 
 
 def compute(_image_id: str, relative_path: str) -> PrefillResult:
@@ -190,7 +147,7 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
         raw_provider = _get_raw_text_provider()
 
         def text_int(roi: MatLike) -> int | None:
-            return _parse_int(provider.result(roi))
+            return parse_int(provider.result(roi))
 
         rating_class_votes = _mask_vote_counts(
             masker,
@@ -222,17 +179,17 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
             "max_recall": text_int(extractor.max_recall),
             "rating_class_votes": rating_class_votes,
             "clear_status_votes": clear_status_votes,
-            "high_score": _parse_int(
+            "high_score": parse_int(
                 raw_provider.result_rec_only(
                     crop_xywh(cropped, rois.high_score.rounded())
                 )
             ),
-            "high_score_delta": _parse_int(
+            "high_score_delta": parse_int(
                 raw_provider.result_rec_only(
                     crop_xywh(cropped, rois.high_score_delta.rounded())
                 )
             ),
-            "pure_shiny": _parse_int(
+            "pure_shiny": parse_int(
                 raw_provider.result_rec_only(
                     crop_xywh(cropped, rois.pure_shiny.rounded())
                 )
@@ -266,10 +223,10 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
                 ),
                 ImageCategory.PARTNER_ICON,
             )
-        prefill["song_id"], prefill["song_id_candidates"] = _rank_candidates(
+        prefill["song_id"], prefill["song_id_candidates"] = rank_candidates(
             jacket_candidates
         )
-        prefill["partner_id"], prefill["partner_id_candidates"] = _rank_candidates(
+        prefill["partner_id"], prefill["partner_id_candidates"] = rank_candidates(
             partner_candidates
         )
         return prefill
@@ -292,8 +249,153 @@ def get(image_id: str, relative_path: str) -> PrefillResult:
 
 
 def warm(image_ids_and_paths: list[tuple[str, str]]) -> None:
+    """Warm the cache head of the annotation queue: full device prefill
+    for device-shaped images, layout probe only for B30/B50 ones (their
+    cards are too expensive to precompute in bulk)."""
     for image_id, relative_path in image_ids_and_paths:
         try:
-            get(image_id, relative_path)
+            img = cv2.imread(str(storage.path_for(relative_path)))
+            if img is None:
+                continue
+            guess = probe(img)
+            if guess is not None and guess.layout != DEVICE:
+                b30_layout(image_id, relative_path)
+            else:
+                get(image_id, relative_path)
         except Exception:
             logger.exception("prefill failed for %s", image_id)
+
+
+# ---- B30/B50 ------------------------------------------------------------
+# layout guess per image, then one OCR pass per card. Cards are expensive
+# (~0.4s each, 50 per screenshot), so they are only computed on request -
+# never warmed in bulk.
+
+_b30_layouts: OrderedDict[str, str | None] = OrderedDict()
+_b30_components: OrderedDict[tuple[str, int], ComponentOcr] = OrderedDict()
+_ihdb: "ImageHashDatabaseIdProvider | None" = None
+
+
+def _read_image(relative_path: str) -> MatLike:
+    img = cv2.imread(str(storage.path_for(relative_path)))
+    if img is None:
+        msg = f"stored file unreadable: {relative_path}"
+        raise ValueError(msg)
+    return img
+
+
+def _get_ihdb():
+    """One shared connection; all ihdb access runs under `_compute_lock`,
+    so `check_same_thread=False` is safe."""
+    global _ihdb
+    with _compute_lock:
+        if _ihdb is None:
+            from arcaea_offline_ocr.providers import (
+                ImageHashDatabaseIdProvider,  # noqa: PLC0415
+            )
+
+            conn = sqlite3.connect(IHDB_PATH, check_same_thread=False)
+            _ihdb = ImageHashDatabaseIdProvider(conn)
+        return _ihdb
+
+
+_providers: OcrProviders | None = None
+
+
+def _get_providers() -> OcrProviders:
+    # one bundle, so chieri's scenario cache (keyed on provider identity)
+    # survives across requests
+    global _providers
+    with _compute_lock:
+        if _providers is None:
+            _providers = OcrProviders(
+                text=_get_text_provider(),
+                raw=_get_raw_text_provider(),
+                ihdb=_get_ihdb(),
+            )
+        return _providers
+
+
+_recognizers: dict[str, B30LayoutOcr] = {}
+
+
+def _get_recognizer(layout_id: str) -> B30LayoutOcr:
+    # singletons; callers run under _compute_lock
+    recognizer = _recognizers.get(layout_id)
+    if recognizer is None:
+        recognizer = make_recognizer(layout_id)
+        _recognizers[layout_id] = recognizer
+    return recognizer
+
+
+def b30_layout(image_id: str, relative_path: str) -> str | None:
+    """Probe the bot layout of a screenshot; None when it is a device
+    screenshot or nothing matches."""
+    with _cache_lock:
+        if image_id in _b30_layouts:
+            return _b30_layouts[image_id]
+
+    guess = probe(_read_image(relative_path))
+    layout = guess.layout if guess is not None and guess.layout != DEVICE else None
+
+    with _cache_lock:
+        _b30_layouts[image_id] = layout
+        _b30_layouts.move_to_end(image_id)
+        while len(_b30_layouts) > CAP:
+            _b30_layouts.popitem(last=False)
+    return layout
+
+
+def b30_component(image_id: str, relative_path: str, index: int) -> ComponentOcr | None:
+    """OCR one card of a B30/B50 screenshot; None when the image does not
+    probe as a supported B30 layout."""
+    layout_id = b30_layout(image_id, relative_path)
+    if layout_id is None:
+        return None
+
+    with _cache_lock:
+        cached = _b30_components.get((image_id, index))
+    if cached is not None:
+        with _cache_lock:
+            _b30_components.move_to_end((image_id, index))
+        return cached
+
+    with _compute_lock:
+        recognizer = _get_recognizer(layout_id)
+        providers = _get_providers()
+        img = _read_image(relative_path)
+        cards = recognizer.components(img, providers)
+        if not 0 <= index < len(cards):
+            msg = f"component index out of range: {index}"
+            raise ValueError(msg)
+        result = recognizer.ocr_component(cards[index], index, providers)
+
+    with _cache_lock:
+        _b30_components[(image_id, index)] = result
+        _b30_components.move_to_end((image_id, index))
+        while len(_b30_components) > CAP:
+            _b30_components.popitem(last=False)
+    return result
+
+
+def b30_card_jpeg(
+    image_id: str, relative_path: str, index: int
+) -> bytes | None:
+    """JPEG-encoded crop of one card, for the annotate view; None when the
+    image does not probe as a supported B30 layout."""
+    layout_id = b30_layout(image_id, relative_path)
+    if layout_id is None:
+        return None
+
+    with _compute_lock:
+        recognizer = _get_recognizer(layout_id)
+        img = _read_image(relative_path)
+        cards = recognizer.components(img, _get_providers())
+        if not 0 <= index < len(cards):
+            msg = f"component index out of range: {index}"
+            raise ValueError(msg)
+        ok, buf = cv2.imencode(".jpg", cards[index])
+        if not ok:
+            msg = f"failed to encode card image: {image_id}#{index}"
+            raise ValueError(msg)
+        return buf.tobytes()

@@ -102,3 +102,60 @@ class DeviceResult(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class B30Result(Base):
+    """Human-confirmed classification of an image as a B30/B50 screenshot.
+
+    1:1 with `images`; the row's existence marks the image as B30/B50
+    content. An image counts as fully reviewed when every component its
+    layout expects has a checked `b30_components` row - there is no
+    image-level checked flag."""
+
+    __tablename__ = "b30_results"
+
+    image_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("images.id", ondelete="CASCADE"), primary_key=True
+    )
+    # bot layout identifier ("chieri_v4", "yurisaki",
+    # "arcaeaonline_b30", "arcaeaonline_b50"); None = confirmed B30/B50
+    # with the layout not chosen yet
+    layout: Mapped[str | None] = mapped_column(String, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class B30Component(Base):
+    """One confirmed card of a B30/B50 screenshot.
+
+    `component_index` is the card's grid position, left-to-right then
+    top-to-bottom, zero-based; how many cards a layout renders is a
+    property of the layout, not of the rows. Cards a layout does not
+    display a field on (arcaeaonline renders no P/F/L) stay NULL."""
+
+    __tablename__ = "b30_components"
+    __table_args__ = (Index("ix_b30_components_image", "image_id"),)
+
+    image_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("images.id", ondelete="CASCADE"), primary_key=True
+    )
+    component_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    song_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    rating_class: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pure: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    far: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    lost: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pure_shiny: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    clear_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )

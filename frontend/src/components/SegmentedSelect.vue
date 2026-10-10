@@ -1,19 +1,19 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends number | string | null">
 const props = defineProps<{
   label: string;
-  options: { value: number | null; label: string }[];
-  modelValue: number | null;
+  options: { value: T; label: string }[];
+  modelValue: T;
   /** shown below the segments, e.g. a low-confidence prefill warning */
   hint?: string | null;
 }>();
 
 const emit = defineEmits<{
-  "update:modelValue": [value: number | null];
+  "update:modelValue": [value: T];
 }>();
 
-function pick(value: number | null) {
+function pick(value: T) {
   // clicking the active segment clears (same as "未知")
-  emit("update:modelValue", props.modelValue === value ? null : value);
+  emit("update:modelValue", (props.modelValue === value ? null : value) as T);
 }
 </script>
 
