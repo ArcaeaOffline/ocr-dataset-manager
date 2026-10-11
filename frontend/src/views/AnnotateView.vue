@@ -131,13 +131,62 @@ const { data, loading } = useRequest(
 );
 
 // the flow switch is ephemeral UI state seeded by the probe (never
-// persisted; queue kind derives from saved rows). Switching to device
-// on a b30-probed image has no OCR proposal: /prefill dispatches on
-// the probe result.
+// persisted; queue kind derives from saved rows)
 const flowOverride = ref<"device" | "b30" | null>(null);
+const devicePrefillFetched = ref(false);
 const flow = computed<"device" | "b30">(
   () => flowOverride.value ?? (data.value?.b30Layout != null ? "b30" : "device"),
 );
+
+async function onFlowChange(value: "device" | "b30") {
+  flowOverride.value = value;
+  if (value === "device") void fetchDevicePrefill();
+}
+
+// /prefill dispatches on the probe, so a b30-probed image viewed as
+// device needs flow=device to get the device OCR proposal
+async function fetchDevicePrefill() {
+  if (devicePrefillFetched.value || data.value?.prefill != null) return;
+  devicePrefillFetched.value = true;
+  try {
+    const res = await api.getPrefill(imageId.value, "device");
+    const prefill = res.kind === "device" ? res.prefill : null;
+    if (data.value != null) data.value = { ...data.value, prefill };
+    if (prefill != null) fillEmptyFromPrefill(prefill);
+  } catch (e) {
+    toast.error(`预识别失败：${(e as Error).message}`);
+  }
+}
+
+// a saved draft or in-progress edits win; prefill fills null fields only
+function fillEmptyFromPrefill(prefill: Prefill) {
+  const candidates: [keyof ResultFields, number | string | null | undefined][] = [
+    ["rois_type", prefill.rois_type],
+    ["song_id", prefill.song_id],
+    ["partner_id", prefill.partner_id],
+    ["rating_class", prefill.rating_class],
+    ["clear_status", prefill.clear_status],
+    ["score", prefill.score],
+    ["pure", prefill.pure],
+    ["far", prefill.far],
+    ["lost", prefill.lost],
+    ["max_recall", prefill.max_recall],
+    ["high_score", prefill.high_score],
+    ["high_score_delta", prefill.high_score_delta],
+    ["pure_shiny", prefill.pure_shiny],
+    ["pure_early", prefill.pure_early],
+    ["pure_late", prefill.pure_late],
+    ["far_early", prefill.far_early],
+    ["far_late", prefill.far_late],
+  ];
+  for (const [key, value] of candidates) {
+    const current = form[key];
+    if (value != null && current == null) {
+      // union-keyed writes demand an intersection of every field's type
+      (form as Record<string, unknown>)[key] = value;
+    }
+  }
+}
 
 const songs = computed(() => data.value.songs);
 const partners = computed(() => data.value.partners);
@@ -170,6 +219,7 @@ watch(imageId, () => {
   imgReady.value = false;
   viewerOpen.value = false;
   flowOverride.value = null;
+  devicePrefillFetched.value = false;
 });
 
 const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_votes));
@@ -250,7 +300,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <B30Annotate v-if="flow === 'b30'" :flow="flow" @switch="flowOverride = $event" />
+  <B30Annotate v-if="flow === 'b30'" :flow="flow" @switch="onFlowChange" />
   <div
     v-else-if="loading"
     class="grid place-items-center py-24 text-muted-foreground"
@@ -262,7 +312,7 @@ onUnmounted(() => {
     <section
       class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
     >
-      <FlowSelector :flow="flow" @switch="flowOverride = $event" />
+      <FlowSelector :flow="flow" @switch="onFlowChange" />
       <!-- on mobile, crop to the annotated region (left 3/4, top 11/12 of
            a 16:9 screenshot): ROIs end by ~0.70w/0.90h, the rest of the
            frame is character art; the full frame stays available in the

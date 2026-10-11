@@ -179,7 +179,9 @@ export const api = {
   // null id = no unchecked image left
   getNextImage: (id: string, kind: QueueKind = "device") =>
     request<{ id: string | null }>(`/api/images/${id}/next?kind=${kind}`),
-  getPrefill: (id: string) => request<PrefillResponse>(`/api/images/${id}/prefill`),
+  // flow=device forces the device proposal even for b30-probed images
+  getPrefill: (id: string, flow?: "device") =>
+    request<PrefillResponse>(`/api/images/${id}/prefill${flow ? `?flow=${flow}` : ""}`),
   getResult: (id: string) =>
     // null = not annotated yet
     request<DeviceResult | null>(`/api/images/${id}/result`),

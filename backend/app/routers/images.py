@@ -376,13 +376,19 @@ def get_next_unchecked(image_id: str, kind: str = "device") -> dict[str, str | N
 
 
 @router.get("/{image_id}/prefill")
-def get_prefill(image_id: str) -> dict[str, object]:
+def get_prefill(image_id: str, flow: str | None = None) -> dict[str, object]:
     """Prefill for whichever flow the image probes as: the B30 layout id
-    when it matches a B30 rendering, else the device OCR proposal."""
+    when it matches a B30 rendering, else the device OCR proposal.
+    `flow=device` skips the probe and computes the device OCR proposal
+    even for b30-probed images."""
+    if flow not in (None, "device"):
+        raise HTTPException(status_code=422, detail=f"unknown flow: {flow}")
     with SessionLocal() as session:
         image = _require_image(session, image_id)
         relative_path = image.relative_path
     try:
+        if flow == "device":
+            return {"kind": "device", "prefill": prefill.get(image_id, relative_path)}
         layout = prefill.b30_layout(image_id, relative_path)
         if layout is not None:
             return {"kind": "b30", "layout": layout}
