@@ -23,6 +23,7 @@ const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
 const currentIndex = ref(0);
 const busyAction = ref<"saveChecked" | "saveDraft" | null>(null);
+const cardReady = ref(false);
 
 interface CardData {
   prefill: B30ComponentPrefill | null;
@@ -73,16 +74,21 @@ const componentCount = computed(() => {
   return layouts.value.find((l) => l.id === layout.value)?.component_count ?? 0;
 });
 
+const filename = ref<string | null>(null);
+const songs = ref<SongEntry[]>([]);
+
 const { data, loading } = useRequest(
   imageId,
   async (id): Promise<B30Result | null> => {
-    const [saved, prefillLayout] = await Promise.all([
+    const [saved, prefillLayout, image] = await Promise.all([
       api.getB30Result(id).catch(() => null),
       api
         .getPrefill(id)
         .then((res) => (res.kind === "b30" ? res.layout : null))
         .catch(() => null),
+      api.getImage(id).catch(() => null),
     ]);
+    filename.value = image?.original_filename ?? null;
     layout.value = saved?.layout ?? prefillLayout;
     if (saved != null) {
       for (const component of saved.components) {
@@ -93,6 +99,11 @@ const { data, loading } = useRequest(
   },
   { initialData: null },
 );
+
+catalog
+  .songs()
+  .then((list) => (songs.value = list))
+  .catch(() => null);
 
 const savedComponents = computed(() => data.value?.components ?? []);
 const checkedCount = computed(() => savedComponents.value.filter((c) => c.checked).length);
@@ -114,6 +125,26 @@ function loadCard(index: number) {
 
 // the OCR proposal for a card is computed on first view (~0.4s), so the
 // prefill fetch runs per card instead of for the whole screenshot
+async function fetchCardPrefill(id: string, index: number) {
+  const existing = cardData[index];
+  if (existing?.prefill != null || existing?.loading) return;
+  const fetchLayout = layout.value;
+  cardData[index] = { prefill: null, saved: existing?.saved ?? null, loading: true };
+  try {
+    const prefill = await api.getB30ComponentPrefill(id, index, fetchLayout ?? undefined);
+    // a layout switch while the request ran invalidates the proposal
+    if (fetchLayout === layout.value) {
+      cardData[index] = { prefill, saved: existing?.saved ?? null, loading: false };
+    }
+  } catch (e) {
+    toast.error(`预识别失败：${(e as Error).message}`);
+  } finally {
+    const entry = cardData[index];
+    if (entry?.loading) cardData[index] = { ...entry, loading: false };
+  }
+  if (currentIndex.value === index && fetchLayout === layout.value) loadCard(index);
+}
+
 watch(
   [imageId, currentIndex],
   async ([id, index], previous) => {
@@ -121,42 +152,57 @@ watch(
     if (prevId !== id) {
       for (const key of Object.keys(cardData)) delete cardData[Number(key)];
       // resetting currentIndex re-triggers this watch; the loading flag
-      // below keeps the second run from fetching again
+      // in fetchCardPrefill keeps the second run from fetching again
       index = 0;
       currentIndex.value = 0;
     }
-    const existing = cardData[index];
+    cardReady.value = false;
     loadCard(index);
-    if (existing?.prefill != null || existing?.loading) return;
-    const fetchLayout = layout.value;
-    cardData[index] = { prefill: null, saved: existing?.saved ?? null, loading: true };
-    try {
-      const prefill = await api.getB30ComponentPrefill(id, index);
-      // a layout switch while the request ran invalidates the proposal
-      if (fetchLayout === layout.value) {
-        cardData[index] = { prefill, saved: existing?.saved ?? null, loading: false };
-      }
-    } catch (e) {
-      toast.error(`预识别失败：${(e as Error).message}`);
-    } finally {
-      const entry = cardData[index];
-      if (entry?.loading) cardData[index] = { ...entry, loading: false };
-    }
-    if (currentIndex.value === index && fetchLayout === layout.value) loadCard(index);
+    await fetchCardPrefill(id, index);
   },
   { immediate: true },
 );
 
-function onLayoutChange(value: string | null) {
+async function onLayoutChange(value: string | null) {
   if (value === layout.value) return;
+  if (value == null) {
+    // 未知: local-only switch; saved rows stay on the server, and saving
+    // requires a layout anyway
+    layout.value = null;
+    for (const key of Object.keys(cardData)) {
+      const entry = cardData[Number(key)];
+      cardData[Number(key)] = { ...entry, prefill: null, loading: false };
+    }
+    loadCard(currentIndex.value);
+    return;
+  }
+  const savedCount = savedComponents.value.length;
+  if (
+    savedCount > 0 &&
+    !window.confirm(`切换布局将清空这张图已保存的 ${savedCount} 张卡的标注，确定吗？`)
+  ) {
+    return;
+  }
+  const previous = layout.value;
   layout.value = value;
-  // prefills were computed on the old layout's grid; saved rows can
-  // stay, the backend replaces them when the new layout is saved
-  for (const key of Object.keys(cardData)) {
-    const entry = cardData[Number(key)];
-    cardData[Number(key)] = { ...entry, prefill: null, loading: false };
+  cardReady.value = false;
+  try {
+    // persist the new layout immediately; the backend drops the old
+    // layout's component rows when a PUT arrives with a different layout,
+    // so the server state matches the UI right away
+    data.value = await api.saveB30Result(imageId.value, value, []);
+  } catch (e) {
+    toast.error(`切换布局失败：${(e as Error).message}`);
+    layout.value = previous;
+    return;
+  }
+  for (const key of Object.keys(cardData)) delete cardData[Number(key)];
+  // the new layout may render fewer cards than the index currently points at
+  if (componentCount.value > 0 && currentIndex.value >= componentCount.value) {
+    currentIndex.value = componentCount.value - 1;
   }
   loadCard(currentIndex.value);
+  void fetchCardPrefill(imageId.value, currentIndex.value);
 }
 
 function previousCard() {
@@ -241,17 +287,6 @@ async function withBusy(action: "saveChecked" | "saveDraft", run: () => Promise<
   }
 }
 
-const filename = ref<string | null>(null);
-const songs = ref<SongEntry[]>([]);
-api
-  .getImage(imageId.value)
-  .then((image) => (filename.value = image.original_filename))
-  .catch(() => null);
-catalog
-  .songs()
-  .then((list) => (songs.value = list))
-  .catch(() => null);
-
 const ratingHint = computed(() => {
   const votes = cardData[currentIndex.value]?.prefill?.rating_class_votes;
   if (votes == null || votes.length < 2) return null;
@@ -293,13 +328,21 @@ onUnmounted(() => {
   </div>
   <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
     <section class="self-start">
-      <div class="overflow-hidden rounded border border-border bg-card">
+      <div class="relative overflow-hidden rounded border border-border bg-card">
         <img
           :key="currentIndex"
-          :src="api.b30CardUrl(imageId, currentIndex)"
+          :src="api.b30CardUrl(imageId, currentIndex, layout ?? undefined)"
           class="block max-h-[calc(100dvh-12rem)] w-full object-contain"
           :alt="`card ${currentIndex}`"
+          @load="cardReady = true"
+          @error="cardReady = true"
         />
+        <div
+          v-if="!cardReady"
+          class="absolute inset-0 grid place-items-center bg-card text-muted-foreground"
+        >
+          <i class="i-lucide-loader-circle size-6 animate-spin" />
+        </div>
       </div>
       <div class="mt-2 flex items-center justify-between gap-2">
         <button class="btn-secondary" :disabled="currentIndex === 0" @click="previousCard">

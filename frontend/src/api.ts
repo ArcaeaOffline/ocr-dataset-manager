@@ -197,9 +197,13 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ layout, components }),
     }),
-  getB30ComponentPrefill: (id: string, index: number) =>
-    request<B30ComponentPrefill>(`/api/images/${id}/b30_prefill/${index}`),
-  b30CardUrl: (id: string, index: number) => `/api/images/${id}/b30_card/${index}`,
+  // layout overrides the backend's probed layout when given
+  getB30ComponentPrefill: (id: string, index: number, layout?: string) =>
+    request<B30ComponentPrefill>(
+      `/api/images/${id}/b30_prefill/${index}${layout ? `?layout=${layout}` : ""}`,
+    ),
+  b30CardUrl: (id: string, index: number, layout?: string) =>
+    `/api/images/${id}/b30_card/${index}${layout ? `?layout=${layout}` : ""}`,
   getB30Layouts: () => request<B30LayoutInfo[]>("/api/images/b30_layouts"),
   createImport: (sourcePath: string, recursive: boolean) =>
     request<ImportBatch>("/api/imports", {

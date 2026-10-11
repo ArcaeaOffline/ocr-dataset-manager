@@ -272,7 +272,7 @@ def warm(image_ids_and_paths: list[tuple[str, str]]) -> None:
 # never warmed in bulk.
 
 _b30_layouts: OrderedDict[str, str | None] = OrderedDict()
-_b30_components: OrderedDict[tuple[str, int], ComponentOcr] = OrderedDict()
+_b30_components: OrderedDict[tuple[str, str, int], ComponentOcr] = OrderedDict()
 _ihdb: "ImageHashDatabaseIdProvider | None" = None
 
 
@@ -346,18 +346,26 @@ def b30_layout(image_id: str, relative_path: str) -> str | None:
     return layout
 
 
-def b30_component(image_id: str, relative_path: str, index: int) -> ComponentOcr | None:
-    """OCR one card of a B30/B50 screenshot; None when the image does not
-    probe as a supported B30 layout."""
-    layout_id = b30_layout(image_id, relative_path)
+def b30_component(
+    image_id: str,
+    relative_path: str,
+    index: int,
+    layout_id: str | None = None,
+) -> ComponentOcr | None:
+    """OCR one card of a B30/B50 screenshot. `layout_id` overrides the
+    probed layout; None is returned when no layout is given and the image
+    does not probe as a supported B30 layout."""
     if layout_id is None:
-        return None
+        layout_id = b30_layout(image_id, relative_path)
+        if layout_id is None:
+            return None
 
+    cache_key = (image_id, layout_id, index)
     with _cache_lock:
-        cached = _b30_components.get((image_id, index))
+        cached = _b30_components.get(cache_key)
     if cached is not None:
         with _cache_lock:
-            _b30_components.move_to_end((image_id, index))
+            _b30_components.move_to_end(cache_key)
         return cached
 
     with _compute_lock:
@@ -371,21 +379,26 @@ def b30_component(image_id: str, relative_path: str, index: int) -> ComponentOcr
         result = recognizer.ocr_component(cards[index], index, providers)
 
     with _cache_lock:
-        _b30_components[(image_id, index)] = result
-        _b30_components.move_to_end((image_id, index))
+        _b30_components[cache_key] = result
+        _b30_components.move_to_end(cache_key)
         while len(_b30_components) > CAP:
             _b30_components.popitem(last=False)
     return result
 
 
 def b30_card_jpeg(
-    image_id: str, relative_path: str, index: int
+    image_id: str,
+    relative_path: str,
+    index: int,
+    layout_id: str | None = None,
 ) -> bytes | None:
-    """JPEG-encoded crop of one card, for the annotate view; None when the
-    image does not probe as a supported B30 layout."""
-    layout_id = b30_layout(image_id, relative_path)
+    """JPEG-encoded crop of one card, for the annotate view. `layout_id`
+    overrides the probed layout; None is returned when no layout is given
+    and the image does not probe as a supported B30 layout."""
     if layout_id is None:
-        return None
+        layout_id = b30_layout(image_id, relative_path)
+        if layout_id is None:
+            return None
 
     with _compute_lock:
         recognizer = _get_recognizer(layout_id)

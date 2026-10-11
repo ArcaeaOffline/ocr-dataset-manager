@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
@@ -11,7 +12,10 @@ from .. import storage
 from ..db import SessionLocal
 from ..models import B30Component, B30Result, DeviceResult, Image, OriginalFilename
 from ..ocr.b30 import LAYOUTS
+from ..ocr.layout_probe import ASPECT_TOLERANCE
 from ..services import prefill
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/images", tags=["images"])
 
@@ -149,6 +153,33 @@ _KIND_FILTERS = {
     )
     & ~exists(select(B30Result.image_id).where(B30Result.image_id == Image.id)),
 }
+
+
+def _b30_aspect_matches():
+    """SQL aspect gate over the known B30 canvases; NULL width/height (or
+    height 0) yields NULL, which never matches."""
+    aspect = Image.width * 1.0 / Image.height
+    return or_(
+        *[
+            func.abs((aspect - w / h) / (w / h)) <= ASPECT_TOLERANCE
+            for w, h in (layout.canvas for layout in LAYOUTS.values())
+        ]
+    )
+
+
+# the b30 next-image scan verifies aspect-matched candidates with the
+# structural probe one by one; bound it so a queue head full of device
+# screenshots (16:9 shares the arcaeaonline B50 aspect) cannot stall the
+# request
+_NEXT_SCAN_LIMIT = 50
+
+
+def _probes_as_b30(image_id: str, relative_path: str) -> bool:
+    try:
+        return prefill.b30_layout(image_id, relative_path) is not None
+    except Exception:
+        logger.warning("b30 probe failed for %s", image_id, exc_info=True)
+        return False
 
 
 def _b30_done_map(session: Session, image_ids: list[str]) -> dict[str, bool | None]:
@@ -299,29 +330,46 @@ def get_image(image_id: str) -> ImageOut:
 def get_next_unchecked(image_id: str, kind: str = "device") -> dict[str, str | None]:
     """Next unchecked image in queue order (newest first), starting after
     `image_id` and wrapping to the queue head; `{"id": None}` when no
-    unchecked image remains."""
+    unchecked image remains. The b30 queue also picks up images with no
+    annotation rows whose aspect matches a known B30 canvas - aspect
+    matches are verified with the structural probe, since 16:9 device
+    screenshots share the arcaeaonline B50 canvas aspect."""
     if kind not in ("device", "b30"):
         raise HTTPException(status_code=422, detail=f"unknown kind: {kind}")
     with SessionLocal() as session:
         current = _require_image(session, image_id)
-        if kind == "b30":
-            queue = select(Image.id).where(_b30_done_filter())
-        else:
-            queue = select(Image.id).where(
-                _unchecked_filter()
-                & ~exists(
-                    select(B30Result.image_id).where(B30Result.image_id == Image.id)
-                )
-            )
-        queue = queue.order_by(Image.created_at.desc(), Image.id.desc())
-        nxt = session.scalar(
-            queue.where(
-                or_(
-                    Image.created_at < current.created_at,
-                    (Image.created_at == current.created_at) & (Image.id < current.id),
-                )
-            ).limit(1)
+        after_current = or_(
+            Image.created_at < current.created_at,
+            (Image.created_at == current.created_at) & (Image.id < current.id),
         )
+        if kind == "b30":
+            b30_sq = exists(
+                select(B30Result.image_id).where(B30Result.image_id == Image.id)
+            )
+            device_sq = exists(
+                select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id)
+            )
+            queue = select(Image.id, Image.relative_path, b30_sq).where(
+                _b30_done_filter() | (~device_sq & ~b30_sq & _b30_aspect_matches())
+            )
+            for scan_from in (after_current, None):
+                stmt = queue.order_by(
+                    Image.created_at.desc(), Image.id.desc()
+                ).limit(_NEXT_SCAN_LIMIT)
+                if scan_from is not None:
+                    stmt = stmt.where(scan_from)
+                for row_id, relative_path, has_b30_row in session.execute(stmt).all():
+                    if has_b30_row or _probes_as_b30(row_id, relative_path):
+                        return {"id": row_id}
+            return {"id": None}
+        queue = select(Image.id).where(
+            _unchecked_filter()
+            & ~exists(
+                select(B30Result.image_id).where(B30Result.image_id == Image.id)
+            )
+        )
+        queue = queue.order_by(Image.created_at.desc(), Image.id.desc())
+        nxt = session.scalar(queue.where(after_current).limit(1))
         if nxt is None:
             nxt = session.scalar(queue.limit(1))
         return {"id": nxt}
@@ -344,14 +392,18 @@ def get_prefill(image_id: str) -> dict[str, object]:
 
 
 @router.get("/{image_id}/b30_prefill/{component_index}")
-def get_b30_component_prefill(image_id: str, component_index: int) -> dict[str, object]:
+def get_b30_component_prefill(
+    image_id: str, component_index: int, layout: str | None = None
+) -> dict[str, object]:
     """OCR proposal for one card; 422 when the image does not probe as a
-    supported B30 layout."""
+    supported B30 layout. `layout` overrides the probed layout."""
+    if layout is not None and layout not in LAYOUTS:
+        raise HTTPException(status_code=422, detail=f"unknown layout: {layout}")
     with SessionLocal() as session:
         image = _require_image(session, image_id)
         relative_path = image.relative_path
     try:
-        result = prefill.b30_component(image_id, relative_path, component_index)
+        result = prefill.b30_component(image_id, relative_path, component_index, layout)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     if result is None:
@@ -360,12 +412,16 @@ def get_b30_component_prefill(image_id: str, component_index: int) -> dict[str, 
 
 
 @router.get("/{image_id}/b30_card/{component_index}")
-def get_b30_card(image_id: str, component_index: int) -> Response:
+def get_b30_card(
+    image_id: str, component_index: int, layout: str | None = None
+) -> Response:
+    if layout is not None and layout not in LAYOUTS:
+        raise HTTPException(status_code=422, detail=f"unknown layout: {layout}")
     with SessionLocal() as session:
         image = _require_image(session, image_id)
         relative_path = image.relative_path
     try:
-        jpeg = prefill.b30_card_jpeg(image_id, relative_path, component_index)
+        jpeg = prefill.b30_card_jpeg(image_id, relative_path, component_index, layout)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     if jpeg is None:
