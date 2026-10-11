@@ -1,5 +1,18 @@
 import type { ResultFields } from "./api";
 
+// vote counts are close when the top two differ by at most one; surface
+// that so the annotator double-checks an ambiguous prefill
+export function voteHint(votes: number[] | undefined | null): string | null {
+  if (votes == null || votes.length < 2) return null;
+  const sorted = [...votes].sort((a, b) => b - a);
+  const top = sorted[0] ?? 0;
+  const second = sorted[1] ?? 0;
+  if (second > 0 && top - second <= 1) {
+    return `预填投票接近：${votes.join(" / ")}`;
+  }
+  return null;
+}
+
 // screenshot-internal consistency warnings; no chart metadata involved.
 // absent values (null) never warn on their own
 export function computeWarnings(r: ResultFields): string[] {

@@ -5,17 +5,22 @@ import { toast } from "vue-sonner";
 import {
   api,
   catalog,
+  CLEAR_STATUS_NAMES,
+  RATING_CLASS_NAMES,
   type DeviceResult,
   type Prefill,
   type ResultFields,
   type SongEntry,
 } from "../api";
 import B30Annotate from "../components/B30Annotate.vue";
+import CheckedToggle from "../components/CheckedToggle.vue";
+import ImageViewer from "../components/ImageViewer.vue";
 import NumberField from "../components/NumberField.vue";
 import PartnerPicker from "../components/PartnerPicker.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
-import { computeWarnings } from "../warnings";
+import { computeWarnings, voteHint } from "../warnings";
+import { useBusy } from "../composables/useBusy";
 import { useRequest } from "../composables/useRequest";
 
 const route = useRoute();
@@ -24,9 +29,7 @@ const router = useRouter();
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
 const viewerOpen = ref(false);
-const ZOOM_LEVELS = [1, 2, 3, 4];
-const zoomIdx = ref(0);
-const busyAction = ref<"saveChecked" | "saveAndNext" | "skip" | null>(null);
+const { busyAction, withBusy } = useBusy<"saveChecked" | "saveAndNext" | "skip">();
 
 interface AnnotateData {
   prefill: Prefill | null;
@@ -65,11 +68,9 @@ const roisTypeOptions = [
   { value: 0, label: "T1" },
   { value: 1, label: "T2" },
 ];
-const ratingClassOptions = ["PST", "PRS", "FTR", "BYD", "ETR"].map((label, i) => ({
-  value: i,
-  label,
-}));
-const clearStatusOptions = ["TL", "TC", "FR", "PM"].map((label, i) => ({
+const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({ value: i, label }));
+// device screenshots never render easy/hard clear
+const clearStatusOptions = CLEAR_STATUS_NAMES.slice(0, 4).map((label, i) => ({
   value: i,
   label,
 }));
@@ -163,23 +164,6 @@ watch(imageId, () => {
   viewerOpen.value = false;
 });
 
-watch(viewerOpen, (opened) => {
-  if (opened) zoomIdx.value = 0;
-});
-
-// vote counts are close when the top two differ by at most one; surface
-// that so the annotator double-checks an ambiguous prefill
-function voteHint(votes: number[] | undefined): string | null {
-  if (votes == null || votes.length < 2) return null;
-  const sorted = [...votes].sort((a, b) => b - a);
-  const top = sorted[0] ?? 0;
-  const second = sorted[1] ?? 0;
-  if (second > 0 && top - second <= 1) {
-    return `预填投票接近：${votes.join(" / ")}`;
-  }
-  return null;
-}
-
 const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_votes));
 const clearHint = computed(() => voteHint(data.value.prefill?.clear_status_votes));
 
@@ -219,16 +203,6 @@ async function goNext() {
     return;
   }
   await router.replace(`/annotate/${nextId}`);
-}
-
-async function withBusy(action: "saveChecked" | "saveAndNext" | "skip", run: () => Promise<void>) {
-  if (busyAction.value !== null) return;
-  busyAction.value = action;
-  try {
-    await run();
-  } finally {
-    busyAction.value = null;
-  }
 }
 
 async function saveAndNext() {
@@ -349,19 +323,7 @@ onUnmounted(() => {
           <NumberField v-model="form.far_late" label="far_late" />
         </div>
 
-        <button
-          type="button"
-          class="mt-1 w-full cursor-pointer rounded border px-3 py-2 text-sm font-medium"
-          :class="
-            form.checked
-              ? 'border-primary bg-primary text-primary-fg'
-              : 'border-border bg-secondary text-secondary-fg'
-          "
-          @click="form.checked = !form.checked"
-        >
-          <i :class="form.checked ? 'i-lucide-check-check size-4' : 'i-lucide-check size-4'" />
-          {{ form.checked ? "已确认（点击取消）" : "标记为确认" }}
-        </button>
+        <CheckedToggle v-model="form.checked" class="mt-1" />
       </div>
 
       <div
@@ -411,46 +373,12 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <!-- full-screen viewer with in-app zoom: width scaling + native touch
-         panning inside the scroll box, so page zoom is never touched -->
-    <div v-if="viewerOpen" class="fixed inset-0 z-50 flex flex-col bg-black/90">
-      <div class="flex items-center justify-between gap-2 p-2 text-white">
-        <span class="truncate text-xs">{{ filename ?? imageId }}</span>
-        <div class="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            class="cursor-pointer rounded p-1.5 hover:bg-white/10 disabled:opacity-40"
-            :disabled="zoomIdx === 0"
-            @click="zoomIdx--"
-          >
-            <i class="i-lucide-zoom-out size-4" />
-          </button>
-          <span class="w-8 text-center text-xs tabular-nums"> {{ ZOOM_LEVELS[zoomIdx] }}x </span>
-          <button
-            type="button"
-            class="cursor-pointer rounded p-1.5 hover:bg-white/10 disabled:opacity-40"
-            :disabled="zoomIdx === ZOOM_LEVELS.length - 1"
-            @click="zoomIdx++"
-          >
-            <i class="i-lucide-zoom-in size-4" />
-          </button>
-          <button
-            type="button"
-            class="cursor-pointer rounded p-1.5 hover:bg-white/10"
-            @click="viewerOpen = false"
-          >
-            <i class="i-lucide-x size-4" />
-          </button>
-        </div>
-      </div>
-      <div class="flex-1 overflow-auto">
-        <img
-          :src="api.fileUrl(imageId)"
-          class="max-w-none"
-          :style="{ width: `${ZOOM_LEVELS[zoomIdx] * 100}%` }"
-          :alt="filename ?? imageId"
-        />
-      </div>
-    </div>
+    <ImageViewer
+      :open="viewerOpen"
+      :src="api.fileUrl(imageId)"
+      :label="filename ?? imageId"
+      :alt="filename ?? imageId"
+      @close="viewerOpen = false"
+    />
   </div>
 </template>

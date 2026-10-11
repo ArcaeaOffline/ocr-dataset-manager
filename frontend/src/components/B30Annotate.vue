@@ -5,6 +5,8 @@ import { toast } from "vue-sonner";
 import {
   api,
   catalog,
+  CLEAR_STATUS_NAMES,
+  RATING_CLASS_NAMES,
   type B30ComponentFields,
   type B30ComponentPrefill,
   type B30LayoutInfo,
@@ -13,11 +15,14 @@ import {
 } from "../api";
 import NumberField from "../components/NumberField.vue";
 import CardOverview from "../components/CardOverview.vue";
+import CheckedToggle from "../components/CheckedToggle.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import ImageViewer from "../components/ImageViewer.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
+import { useBusy } from "../composables/useBusy";
 import { useRequest } from "../composables/useRequest";
+import { voteHint } from "../warnings";
 
 const route = useRoute();
 const router = useRouter();
@@ -25,7 +30,7 @@ const router = useRouter();
 const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
 const currentIndex = ref(0);
-const busyAction = ref<"saveChecked" | "saveDraft" | "skip" | null>(null);
+const { busyAction, withBusy } = useBusy<"saveChecked" | "saveDraft" | "skip">();
 const cardReady = ref(false);
 const viewerOpen = ref(false);
 const overviewOpen = ref(false);
@@ -64,15 +69,9 @@ const layoutOptions = computed(() => [
   { value: null, label: "未知" },
   ...layouts.value.map((l) => ({ value: l.id, label: l.id })),
 ]);
-const ratingClassOptions = ["PST", "PRS", "FTR", "BYD", "ETR"].map((label, i) => ({
-  value: i,
-  label,
-}));
+const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({ value: i, label }));
 // bots render all six st3 clear states; EC/HC never appear on device screenshots
-const clearStatusOptions = ["TL", "TC", "FR", "PM", "EC", "HC"].map((label, i) => ({
-  value: i,
-  label,
-}));
+const clearStatusOptions = CLEAR_STATUS_NAMES.map((label, i) => ({ value: i, label }));
 
 const componentCount = computed(() => {
   if (layout.value == null) return 0;
@@ -303,30 +302,14 @@ async function goNext() {
   await router.replace(`/annotate/${nextId}`);
 }
 
-async function withBusy(action: "saveChecked" | "saveDraft" | "skip", run: () => Promise<void>) {
-  if (busyAction.value !== null) return;
-  busyAction.value = action;
-  try {
-    await run();
-  } finally {
-    busyAction.value = null;
-  }
-}
-
 function selectCard(index: number) {
   overviewOpen.value = false;
   currentIndex.value = index;
 }
 
-const ratingHint = computed(() => {
-  const votes = cardData[currentIndex.value]?.prefill?.rating_class_votes;
-  if (votes == null || votes.length < 2) return null;
-  const sorted = [...votes].sort((a, b) => b - a);
-  if ((sorted[1] ?? 0) > 0 && (sorted[0] ?? 0) - (sorted[1] ?? 0) <= 1) {
-    return `预填投票接近：${votes.join(" / ")}`;
-  }
-  return null;
-});
+const ratingHint = computed(() =>
+  voteHint(cardData[currentIndex.value]?.prefill?.rating_class_votes),
+);
 
 function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === "Enter") {
@@ -458,19 +441,7 @@ onUnmounted(() => {
           <NumberField v-model="form.lost" label="lost" />
         </div>
 
-        <button
-          type="button"
-          class="w-full cursor-pointer rounded border px-3 py-2 text-sm font-medium"
-          :class="
-            form.checked
-              ? 'border-primary bg-primary text-primary-fg'
-              : 'border-border bg-secondary text-secondary-fg'
-          "
-          @click="form.checked = !form.checked"
-        >
-          <i :class="form.checked ? 'i-lucide-check-check size-4' : 'i-lucide-check size-4'" />
-          {{ form.checked ? "已确认（点击取消）" : "标记为确认" }}
-        </button>
+        <CheckedToggle v-model="form.checked" class="mt-1" />
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
