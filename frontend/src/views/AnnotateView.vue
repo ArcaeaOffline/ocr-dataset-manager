@@ -14,6 +14,7 @@ import {
 } from "../api";
 import B30Annotate from "../components/B30Annotate.vue";
 import CheckedToggle from "../components/CheckedToggle.vue";
+import FlowSelector from "../components/FlowSelector.vue";
 import ImageViewer from "../components/ImageViewer.vue";
 import NumberField from "../components/NumberField.vue";
 import PartnerPicker from "../components/PartnerPicker.vue";
@@ -129,8 +130,14 @@ const { data, loading } = useRequest(
   },
 );
 
-// B30/B50 screenshots render as a grid of cards and get their own flow
-const isB30 = computed(() => !loading.value && data.value.b30Layout != null);
+// the flow switch is ephemeral UI state seeded by the probe (never
+// persisted; queue kind derives from saved rows). Switching to device
+// on a b30-probed image has no OCR proposal: /prefill dispatches on
+// the probe result.
+const flowOverride = ref<"device" | "b30" | null>(null);
+const flow = computed<"device" | "b30">(
+  () => flowOverride.value ?? (data.value?.b30Layout != null ? "b30" : "device"),
+);
 
 const songs = computed(() => data.value.songs);
 const partners = computed(() => data.value.partners);
@@ -162,6 +169,7 @@ watch(
 watch(imageId, () => {
   imgReady.value = false;
   viewerOpen.value = false;
+  flowOverride.value = null;
 });
 
 const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_votes));
@@ -242,7 +250,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <B30Annotate v-if="isB30" />
+  <B30Annotate v-if="flow === 'b30'" :flow="flow" @switch="flowOverride = $event" />
   <div
     v-else-if="loading"
     class="grid place-items-center py-24 text-muted-foreground"
@@ -254,12 +262,13 @@ onUnmounted(() => {
     <section
       class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
     >
+      <FlowSelector :flow="flow" @switch="flowOverride = $event" />
       <!-- on mobile, crop to the annotated region (left 3/4, top 11/12 of
            a 16:9 screenshot): ROIs end by ~0.70w/0.90h, the rest of the
            frame is character art; the full frame stays available in the
            viewer -->
       <div
-        class="relative overflow-hidden rounded border border-border bg-card lt-lg:aspect-[16/11]"
+        class="relative mt-2 overflow-hidden rounded border border-border bg-card lt-lg:aspect-[16/11]"
       >
         <img
           :src="api.fileUrl(imageId)"

@@ -17,6 +17,7 @@ import NumberField from "../components/NumberField.vue";
 import CardOverview from "../components/CardOverview.vue";
 import CheckedToggle from "../components/CheckedToggle.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import FlowSelector from "../components/FlowSelector.vue";
 import ImageViewer from "../components/ImageViewer.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
@@ -26,6 +27,12 @@ import { voteHint } from "../warnings";
 
 const route = useRoute();
 const router = useRouter();
+
+const props = defineProps<{ flow: "device" | "b30" }>();
+
+const emit = defineEmits<{
+  switch: [flow: "device" | "b30"];
+}>();
 
 const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
@@ -135,6 +142,9 @@ function loadCard(index: number) {
 async function fetchCardPrefill(id: string, index: number) {
   const existing = cardData[index];
   if (existing?.prefill != null || existing?.loading) return;
+  // without a layout there is nothing to OCR against; the card area
+  // shows a hint instead
+  if (layout.value == null) return;
   const fetchLayout = layout.value;
   cardData[index] = { prefill: null, saved: existing?.saved ?? null, loading: true };
   try {
@@ -345,23 +355,38 @@ onUnmounted(() => {
     <i class="i-lucide-loader-circle size-6 animate-spin" />
   </div>
   <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
-    <section class="self-start">
-      <div class="relative overflow-hidden rounded border border-border bg-card">
+    <section
+      class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
+    >
+      <FlowSelector
+        :flow="flow"
+        :layout="layout"
+        :layout-options="layoutOptions"
+        @switch="emit('switch', $event)"
+        @change-layout="onLayoutChange"
+      />
+      <div class="relative mt-2 min-h-40 overflow-hidden rounded border border-border bg-card">
         <img
           :key="currentIndex"
           :src="api.b30CardUrl(imageId, currentIndex, layout ?? undefined)"
           class="block max-h-[calc(100dvh-12rem)] w-full cursor-zoom-in object-contain"
           :alt="`card ${currentIndex}`"
-          title="点击查看完整截图"
+          title="点击打开卡片总览"
           @load="cardReady = true"
           @error="cardReady = true"
-          @click="viewerOpen = true"
+          @click="overviewOpen = true"
         />
         <div
           v-if="!cardReady"
           class="absolute inset-0 grid place-items-center bg-card text-muted-foreground"
         >
           <i class="i-lucide-loader-circle size-6 animate-spin" />
+        </div>
+        <div
+          v-if="layout == null"
+          class="absolute inset-0 grid place-items-center bg-card p-4 text-center text-sm text-muted-foreground"
+        >
+          布局未知，请在上方选择样式
         </div>
       </div>
       <div class="mt-2 flex items-center justify-between gap-2">
@@ -406,12 +431,6 @@ onUnmounted(() => {
 
     <section class="space-y-4">
       <div class="space-y-3 rounded border border-border bg-card p-3">
-        <SegmentedSelect
-          :model-value="layout"
-          label="layout"
-          :options="layoutOptions"
-          @update:model-value="onLayoutChange"
-        />
         <p class="text-xs text-muted-foreground">
           已确认 {{ checkedCount }} / {{ componentCount || "?" }} 卡
         </p>
