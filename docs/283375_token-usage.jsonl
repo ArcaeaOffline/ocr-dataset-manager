@@ -1,0 +1,5 @@
+{"date":"2026-09-12","source":"zcode","model":"glm-5.3-flash","requests":17,"input_tokens":536779,"cache_read_tokens":442752,"cache_write_tokens":0,"output_tokens":13607,"reasoning_tokens":0}
+{"date":"2026-09-13","source":"zcode","model":"glm-5.3-flash","requests":87,"input_tokens":8108252,"cache_read_tokens":7932160,"cache_write_tokens":0,"output_tokens":48042,"reasoning_tokens":0}
+{"date":"2026-09-18","source":"zcode","model":"glm-5.3-flash","requests":221,"input_tokens":44785639,"cache_read_tokens":43754304,"cache_write_tokens":0,"output_tokens":139554,"reasoning_tokens":0}
+{"date":"2026-09-19","source":"zcode","model":"glm-5.3-flash","requests":462,"input_tokens":50155300,"cache_read_tokens":48624128,"cache_write_tokens":0,"output_tokens":238073,"reasoning_tokens":0}
+{"date":"2026-10-02","source":"zcode","model":"glm-5.3-flash","requests":245,"input_tokens":39463534,"cache_read_tokens":38794560,"cache_write_tokens":0,"output_tokens":153359,"reasoning_tokens":0}
