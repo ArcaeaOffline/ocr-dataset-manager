@@ -4,7 +4,7 @@ A local annotation tool that turns Arcaea play-result screenshots into
 confirmed OCR training records. Recognition is handled by
 [core-ocr](https://github.com/ArcaeaOffline/core-ocr),
 this repo adds the dataset workflow around it: bulk import,
-pre-recognition, human review, SQLite storage.
+pre-recognition, human confirmations, SQLite storage.
 
 ## Layout
 
@@ -110,3 +110,14 @@ can be reset any time by deleting `data/odm.sqlite3`.
   `B30Layout` + recognizer.
 - Near-duplicate warnings: the perceptual hash column is populated but
   nothing compares it yet.
+
+## Help make this project better
+
+- See [docs/token-usage.md](./docs/token-usage.md).
+- See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## PR policy
+
+Every PR description must include a verification note: either who (a **HUMAN**)
+ran what and confirmed the behavior, or the literal string `No human verifications`.
+Never write a verification claim that did not happen or fully done by AI.
