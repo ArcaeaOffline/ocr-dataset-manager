@@ -99,7 +99,7 @@ All paths have defaults that work for a checkout sitting next to a
 
 ## License
 
-[MIT](LICENSE).
+[AGPL-3.0-or-later](LICENSE).
 
 Arcaea is a game by lowiro. This project is an independent tool and is not
 affiliated with or endorsed by lowiro.
