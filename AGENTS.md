@@ -15,7 +15,8 @@ backend/          FastAPI + SQLAlchemy + SQLite, uv workspace member
   app/services/   import pipeline, prefill cache
   app/routers/    HTTP surface
   migrations/     alembic (auto-upgrades on app startup)
-frontend/         vite + vue3 + UnoCSS SPA (pnpm)
+frontend/         vite + vue3 + UnoCSS SPA (pnpm); interactive components
+                  sit on reka-ui headless primitives
 data/             gitignored runtime data: db, image store, thumbnails and others
 ```
 
@@ -81,7 +82,13 @@ can be reset any time by deleting `data/odm.sqlite3`.
   describes a bot's canonical canvas, card grid, and per-card ROIs, all
   factor-scaled by `width / canvas_width`. `layout_probe.py` classifies
   a screenshot by aspect ratio plus background-independent structural
-  checks; the probe is only a prefill proposal and never persists.
+  checks; the probe is only a prefill proposal and never persists. The
+  UI mirrors that: a manual flow switch and layout selector in the
+  image area override the probe per view (ephemeral UI state — queue
+  kind still derives from saved rows), and the endpoints take explicit
+  overrides (`/b30_card`, `/b30_prefill` accept `?layout=`; `/prefill`
+  accepts `?flow=device` to compute the device proposal for a
+  b30-probed image).
   `chieri_v4` delegates card cutting and OCR to core-ocr's
   `ChieriBotV4Best30Scenario`; yurisaki and arcaeaonline have local
   recognizers. Card OCR is computed on request per card (~0.4s) and is
@@ -106,8 +113,9 @@ can be reset any time by deleting `data/odm.sqlite3`.
 
 - No export path from SQLite to training formats yet.
 - B30/B50 bot layouts covered: chieri v4, yurisaki, arcaeaonline
-  (b30/b50). Other bot renderings probe as unclassified and need a new
-  `B30Layout` + recognizer.
+  (b30/b50). Other bot renderings probe as unclassified; they can still
+  be annotated manually via the flow switch, but OCR prefill for them
+  needs a new `B30Layout` + recognizer.
 - Near-duplicate warnings: the perceptual hash column is populated but
   nothing compares it yet.
 
