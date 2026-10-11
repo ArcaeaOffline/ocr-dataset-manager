@@ -12,7 +12,9 @@ import {
   type SongEntry,
 } from "../api";
 import NumberField from "../components/NumberField.vue";
+import CardOverview from "../components/CardOverview.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import ImageViewer from "../components/ImageViewer.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
 import { useRequest } from "../composables/useRequest";
@@ -23,8 +25,10 @@ const router = useRouter();
 const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
 const currentIndex = ref(0);
-const busyAction = ref<"saveChecked" | "saveDraft" | null>(null);
+const busyAction = ref<"saveChecked" | "saveDraft" | "skip" | null>(null);
 const cardReady = ref(false);
+const viewerOpen = ref(false);
+const overviewOpen = ref(false);
 
 interface CardData {
   prefill: B30ComponentPrefill | null;
@@ -108,6 +112,9 @@ catalog
 
 const savedComponents = computed(() => data.value?.components ?? []);
 const checkedCount = computed(() => savedComponents.value.filter((c) => c.checked).length);
+const checkedIndexes = computed(
+  () => new Set(savedComponents.value.filter((c) => c.checked).map((c) => c.index)),
+);
 
 function loadCard(index: number) {
   currentIndex.value = index;
@@ -276,6 +283,10 @@ async function saveDraft() {
   });
 }
 
+async function skip() {
+  await withBusy("skip", goNext);
+}
+
 async function goNext() {
   let nextId: string | null;
   try {
@@ -292,7 +303,7 @@ async function goNext() {
   await router.replace(`/annotate/${nextId}`);
 }
 
-async function withBusy(action: "saveChecked" | "saveDraft", run: () => Promise<void>) {
+async function withBusy(action: "saveChecked" | "saveDraft" | "skip", run: () => Promise<void>) {
   if (busyAction.value !== null) return;
   busyAction.value = action;
   try {
@@ -300,6 +311,11 @@ async function withBusy(action: "saveChecked" | "saveDraft", run: () => Promise<
   } finally {
     busyAction.value = null;
   }
+}
+
+function selectCard(index: number) {
+  overviewOpen.value = false;
+  currentIndex.value = index;
 }
 
 const ratingHint = computed(() => {
@@ -325,6 +341,10 @@ function onKeydown(event: KeyboardEvent) {
   ) {
     return;
   }
+  if (event.key === "Escape") {
+    viewerOpen.value = false;
+    overviewOpen.value = false;
+  }
   if (event.key === "ArrowLeft") previousCard();
   if (event.key === "ArrowRight") nextCard();
 }
@@ -347,10 +367,12 @@ onUnmounted(() => {
         <img
           :key="currentIndex"
           :src="api.b30CardUrl(imageId, currentIndex, layout ?? undefined)"
-          class="block max-h-[calc(100dvh-12rem)] w-full object-contain"
+          class="block max-h-[calc(100dvh-12rem)] w-full cursor-zoom-in object-contain"
           :alt="`card ${currentIndex}`"
+          title="点击查看完整截图"
           @load="cardReady = true"
           @error="cardReady = true"
+          @click="viewerOpen = true"
         />
         <div
           v-if="!cardReady"
@@ -364,10 +386,29 @@ onUnmounted(() => {
           <i class="i-lucide-arrow-left size-4" />
           上一卡
         </button>
-        <span class="text-sm tabular-nums text-muted-foreground">
-          卡 {{ currentIndex + 1 }} / {{ componentCount || "?" }} ·
-          {{ layout ?? "布局未知" }}
-        </span>
+        <div class="flex items-center gap-1">
+          <span class="text-sm tabular-nums text-muted-foreground">
+            卡 {{ currentIndex + 1 }} / {{ componentCount || "?" }} ·
+            {{ layout ?? "布局未知" }}
+          </span>
+          <button
+            type="button"
+            class="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title="查看完整截图"
+            @click="viewerOpen = true"
+          >
+            <i class="i-lucide-expand size-4" />
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title="卡片总览"
+            :disabled="layout == null"
+            @click="overviewOpen = true"
+          >
+            <i class="i-lucide-layout-grid size-4" />
+          </button>
+        </div>
         <button
           class="btn-secondary"
           :disabled="layout != null && currentIndex >= componentCount - 1"
@@ -416,6 +457,20 @@ onUnmounted(() => {
           <NumberField v-model="form.far" label="far" />
           <NumberField v-model="form.lost" label="lost" />
         </div>
+
+        <button
+          type="button"
+          class="w-full cursor-pointer rounded border px-3 py-2 text-sm font-medium"
+          :class="
+            form.checked
+              ? 'border-primary bg-primary text-primary-fg'
+              : 'border-border bg-secondary text-secondary-fg'
+          "
+          @click="form.checked = !form.checked"
+        >
+          <i :class="form.checked ? 'i-lucide-check-check size-4' : 'i-lucide-check size-4'" />
+          {{ form.checked ? "已确认（点击取消）" : "标记为确认" }}
+        </button>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -427,7 +482,7 @@ onUnmounted(() => {
                 : 'i-lucide-check size-4'
             "
           />
-          确认此卡{{ currentIndex >= componentCount - 1 ? "，下一图" : "" }}
+          确认并{{ currentIndex >= componentCount - 1 ? "下一图" : "下一卡" }}
         </button>
         <button
           class="btn-secondary"
@@ -442,6 +497,16 @@ onUnmounted(() => {
             "
           />
           保存草稿
+        </button>
+        <button class="btn-secondary" :disabled="busyAction !== null" @click="skip">
+          <i
+            :class="
+              busyAction === 'skip'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-skip-forward size-4'
+            "
+          />
+          跳过此图
         </button>
       </div>
     </section>
@@ -463,6 +528,24 @@ onUnmounted(() => {
         }
       "
       @confirm="confirmPendingLayout"
+    />
+
+    <ImageViewer
+      :open="viewerOpen"
+      :src="api.fileUrl(imageId)"
+      :label="filename ?? imageId"
+      :alt="filename ?? imageId"
+      @close="viewerOpen = false"
+    />
+    <CardOverview
+      :open="overviewOpen"
+      :image-id="imageId"
+      :layout="layout"
+      :component-count="componentCount"
+      :current-index="currentIndex"
+      :checked-indexes="checkedIndexes"
+      @close="overviewOpen = false"
+      @select="selectCard"
     />
   </div>
 </template>
