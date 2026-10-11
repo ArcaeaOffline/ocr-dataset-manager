@@ -12,6 +12,7 @@ import {
   type SongEntry,
 } from "../api";
 import NumberField from "../components/NumberField.vue";
+import ConfirmDialog from "../components/ConfirmDialog.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
 import { useRequest } from "../composables/useRequest";
@@ -176,16 +177,27 @@ async function onLayoutChange(value: string | null) {
     loadCard(currentIndex.value);
     return;
   }
-  const savedCount = savedComponents.value.length;
-  if (
-    savedCount > 0 &&
-    !window.confirm(`切换布局将清空这张图已保存的 ${savedCount} 张卡的标注，确定吗？`)
-  ) {
+  if (savedComponents.value.length > 0) {
+    pendingLayout.value = value;
     return;
   }
+  await applyLayoutSwitch(value);
+}
+
+// a layout switch awaiting confirmation; non-null opens the confirm dialog
+const pendingLayout = ref<string | null>(null);
+const switchingLayout = ref(false);
+
+function confirmPendingLayout() {
+  if (pendingLayout.value == null) return;
+  void applyLayoutSwitch(pendingLayout.value);
+}
+
+async function applyLayoutSwitch(value: string) {
   const previous = layout.value;
   layout.value = value;
   cardReady.value = false;
+  switchingLayout.value = true;
   try {
     // persist the new layout immediately; the backend drops the old
     // layout's component rows when a PUT arrives with a different layout,
@@ -195,6 +207,9 @@ async function onLayoutChange(value: string | null) {
     toast.error(`切换布局失败：${(e as Error).message}`);
     layout.value = previous;
     return;
+  } finally {
+    switchingLayout.value = false;
+    pendingLayout.value = null;
   }
   for (const key of Object.keys(cardData)) delete cardData[Number(key)];
   // the new layout may render fewer cards than the index currently points at
@@ -430,5 +445,24 @@ onUnmounted(() => {
         </button>
       </div>
     </section>
+
+    <ConfirmDialog
+      :open="pendingLayout != null"
+      title="切换布局"
+      :description="
+        pendingLayout == null
+          ? ''
+          : `按 ${pendingLayout} 重新切分这张图的卡片，已保存的 ${savedComponents.length} 张卡标注将被清空。`
+      "
+      confirm-label="确认切换"
+      destructive
+      :busy="switchingLayout"
+      @update:open="
+        (open: boolean) => {
+          if (!open) pendingLayout = null;
+        }
+      "
+      @confirm="confirmPendingLayout"
+    />
   </div>
 </template>
