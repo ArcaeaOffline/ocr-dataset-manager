@@ -13,6 +13,7 @@ import {
   type SongEntry,
 } from "../api";
 import B30Annotate from "../components/B30Annotate.vue";
+import Button from "../components/Button.vue";
 import CheckedToggle from "../components/CheckedToggle.vue";
 import FlowSelector from "../components/FlowSelector.vue";
 import ImageViewer from "../components/ImageViewer.vue";
@@ -313,16 +314,10 @@ onUnmounted(() => {
       class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
     >
       <FlowSelector :flow="flow" @switch="onFlowChange" />
-      <!-- on mobile, crop to the annotated region (left 3/4, top 11/12 of
-           a 16:9 screenshot): ROIs end by ~0.70w/0.90h, the rest of the
-           frame is character art; the full frame stays available in the
-           viewer -->
-      <div
-        class="relative mt-2 overflow-hidden rounded border border-border bg-card lt-lg:aspect-[16/11]"
-      >
+      <div class="relative mt-2 overflow-hidden rounded border border-border bg-card">
         <img
           :src="api.fileUrl(imageId)"
-          class="block w-full max-w-none cursor-zoom-in lt-lg:w-[133.333%] lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
+          class="mx-auto block max-w-full cursor-zoom-in lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
           :alt="filename ?? imageId"
           @load="imgReady = true"
           @click="viewerOpen = true"
@@ -399,7 +394,7 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <button class="btn" :disabled="busyAction !== null" @click="saveChecked">
+        <Button :disabled="busyAction !== null" @click="saveChecked">
           <i
             :class="
               busyAction === 'saveChecked'
@@ -408,8 +403,8 @@ onUnmounted(() => {
             "
           />
           确认并下一张
-        </button>
-        <button class="btn-secondary" :disabled="busyAction !== null" @click="saveAndNext">
+        </Button>
+        <Button variant="secondary" :disabled="busyAction !== null" @click="saveAndNext">
           <i
             :class="
               busyAction === 'saveAndNext'
@@ -418,8 +413,8 @@ onUnmounted(() => {
             "
           />
           保存草稿并下一张
-        </button>
-        <button class="btn-secondary" :disabled="busyAction !== null" @click="skip">
+        </Button>
+        <Button variant="secondary" :disabled="busyAction !== null" @click="skip">
           <i
             :class="
               busyAction === 'skip'
@@ -428,7 +423,7 @@ onUnmounted(() => {
             "
           />
           跳过
-        </button>
+        </Button>
       </div>
     </section>
 

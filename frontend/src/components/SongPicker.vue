@@ -1,7 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import {
+  ComboboxAnchor,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxPortal,
+  ComboboxRoot,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from "reka-ui";
 import type { Candidate, SongEntry } from "../api";
-import Modal from "./Modal.vue";
+import Button from "./Button.vue";
 
 const props = defineProps<{
   candidates: Candidate[];
@@ -14,6 +28,14 @@ const emit = defineEmits<{
 }>();
 
 const text = ref(props.modelValue ?? "");
+const panelOpen = ref(false);
+const query = ref("");
+
+// free text is the value
+watch(text, (value) => {
+  emit("update:modelValue", value.trim() === "" ? null : value);
+});
+
 // prefill loads arrive after mount (and card switches swap the proposal)
 watch(
   () => props.modelValue,
@@ -21,32 +43,11 @@ watch(
     if (value !== text.value.trim()) text.value = value ?? "";
   },
 );
-const open = ref(false);
-const panelOpen = ref(false);
-const query = ref("");
 
 const titleOf = computed(() => {
   const map = new Map(props.songs.map((s) => [s.id, s.title]));
   return (id: string) => map.get(id) ?? id;
 });
-
-function onInput(event: Event) {
-  text.value = (event.target as HTMLInputElement).value;
-  open.value = true;
-  emit("update:modelValue", text.value.trim() === "" ? null : text.value);
-}
-
-function pick(id: string) {
-  text.value = id;
-  emit("update:modelValue", id);
-  open.value = false;
-}
-
-function onBlur() {
-  setTimeout(() => {
-    open.value = false;
-  }, 120);
-}
 
 const filteredSongs = computed(() => {
   const q = query.value.trim().toLowerCase();
@@ -57,72 +58,94 @@ const filteredSongs = computed(() => {
     .slice(0, 80);
 });
 
+// the single-select listbox deselects the picked candidate on re-click by
+// emitting undefined; the field keeps its text in that case
+function onSelect(value: unknown) {
+  if (typeof value !== "string") return;
+  text.value = value;
+}
+
 function selectFromPanel(id: string) {
   panelOpen.value = false;
-  pick(id);
+  text.value = id;
 }
 </script>
 
 <template>
-  <div class="relative">
-    <div class="flex items-end gap-1">
+  <ComboboxRoot
+    :model-value="props.modelValue"
+    :reset-search-term-on-blur="false"
+    :reset-search-term-on-select="false"
+    ignore-filter
+    open-on-focus
+    @update:model-value="onSelect"
+  >
+    <ComboboxAnchor class="flex items-end gap-1">
       <label class="block flex-1">
         <span class="field-label">song_id</span>
-        <input
-          class="field-input mt-0.5"
-          :value="text"
-          placeholder="留空 = 未知"
-          @input="onInput"
-          @focus="open = true"
-          @blur="onBlur"
-        />
+        <ComboboxInput v-model="text" class="field-input mt-0.5" placeholder="留空 = 未知" />
       </label>
-      <button class="btn-secondary" title="搜索全目录" @click="panelOpen = true">
+      <Button variant="secondary" title="搜索全目录" @click="panelOpen = true">
         <i class="i-lucide-search size-4" />
         搜索
-      </button>
-    </div>
-    <div
-      v-if="open && props.candidates.length > 0"
-      class="absolute z-10 mt-0.5 w-full overflow-y-auto rounded border border-border bg-card shadow-lg"
-    >
-      <button
-        v-for="c in props.candidates"
-        :key="c.image_id"
-        type="button"
-        class="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-sm hover:bg-secondary"
-        @mousedown.prevent="pick(c.image_id)"
-      >
-        <span class="truncate">{{ titleOf(c.image_id) }}</span>
-        <span class="shrink-0 text-xs text-muted-foreground">
-          {{ c.image_id }} · {{ (c.confidence * 100).toFixed(1) }}%
-        </span>
-      </button>
-    </div>
+      </Button>
+    </ComboboxAnchor>
 
-    <Modal v-if="panelOpen" @close="panelOpen = false">
-      <h3 class="mb-2 text-sm font-semibold">搜索歌曲目录</h3>
-      <input v-model="query" class="field-input" placeholder="标题或 song_id…" autofocus />
-      <div class="mt-2 max-h-80 overflow-y-auto">
-        <button
-          v-for="s in filteredSongs"
-          :key="s.id"
-          type="button"
-          class="flex w-full items-baseline justify-between gap-3 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary"
-          @click="selectFromPanel(s.id)"
+    <!-- candidates are OCR proposals, not catalog entries, so they never
+         filter against the typed text -->
+    <ComboboxPortal v-if="props.candidates.length > 0">
+      <ComboboxContent
+        position="popper"
+        :side-offset="4"
+        class="z-10 w-[var(--reka-popper-anchor-width)] overflow-y-auto rounded border border-border bg-card shadow-lg"
+      >
+        <ComboboxItem
+          v-for="c in props.candidates"
+          :key="c.image_id"
+          :value="c.image_id"
+          class="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-secondary"
         >
-          <span class="truncate">{{ s.title }}</span>
-          <span class="shrink-0 font-mono text-xs text-muted-foreground">
-            {{ s.id }}
+          <span class="truncate">{{ titleOf(c.image_id) }}</span>
+          <span class="shrink-0 text-xs text-muted-foreground">
+            {{ c.image_id }} · {{ (c.confidence * 100).toFixed(1) }}%
           </span>
-        </button>
-        <div
-          v-if="filteredSongs.length === 0"
-          class="px-2 py-4 text-center text-sm text-muted-foreground"
-        >
-          无匹配结果
+        </ComboboxItem>
+      </ComboboxContent>
+    </ComboboxPortal>
+  </ComboboxRoot>
+
+  <DialogRoot :open="panelOpen" @update:open="panelOpen = $event">
+    <DialogPortal>
+      <DialogOverlay class="fixed inset-0 z-50 bg-black/60" />
+      <DialogContent
+        class="fixed left-1/2 top-1/2 z-50 max-h-full w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-4 shadow-xl focus:outline-none"
+      >
+        <DialogTitle class="mb-2 text-sm font-semibold">搜索歌曲目录</DialogTitle>
+        <DialogDescription class="sr-only">
+          输入标题或 song_id 过滤，点击结果选择
+        </DialogDescription>
+        <input v-model="query" class="field-input" placeholder="标题或 song_id…" autofocus />
+        <div class="mt-2 max-h-80 overflow-y-auto">
+          <button
+            v-for="s in filteredSongs"
+            :key="s.id"
+            type="button"
+            class="flex w-full items-baseline justify-between gap-3 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary"
+            @click="selectFromPanel(s.id)"
+          >
+            <span class="truncate">{{ s.title }}</span>
+            <span class="shrink-0 font-mono text-xs text-muted-foreground">
+              {{ s.id }}
+            </span>
+          </button>
+          <div
+            v-if="filteredSongs.length === 0"
+            class="px-2 py-4 text-center text-sm text-muted-foreground"
+          >
+            无匹配结果
+          </div>
         </div>
-      </div>
-    </Modal>
-  </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>

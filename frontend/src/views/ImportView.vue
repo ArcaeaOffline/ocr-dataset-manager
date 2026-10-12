@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { toast } from "vue-sonner";
 import { api, type ImportBatch } from "../api";
+import Button from "../components/Button.vue";
 
 const sourcePath = ref("");
 const recursive = ref(false);
@@ -64,7 +65,7 @@ onUnmounted(() => {
           <input v-model="recursive" type="checkbox" />
           含子目录
         </label>
-        <button class="btn" :disabled="submitting" @click="submit">
+        <Button :disabled="submitting" @click="submit">
           <i
             :class="
               submitting
@@ -73,7 +74,7 @@ onUnmounted(() => {
             "
           />
           开始导入
-        </button>
+        </Button>
       </div>
     </section>
 

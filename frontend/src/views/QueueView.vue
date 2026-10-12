@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { toast } from "vue-sonner";
 import { api, type ImageItem, type QueueKind } from "../api";
+import Button from "../components/Button.vue";
 import { useRequest } from "../composables/useRequest";
 
 const uncheckedOnly = ref(true);
@@ -66,17 +67,17 @@ const thumbFailed = ref<Record<string, true>>({});
       </div>
       <span class="whitespace-nowrap text-muted-foreground">共 {{ total }} 张</span>
       <span class="ml-auto flex items-center gap-2 whitespace-nowrap">
-        <button class="btn-secondary" :disabled="page === 0 || loading" @click="page--">
+        <Button variant="secondary" :disabled="page === 0 || loading" @click="page--">
           上一页
-        </button>
+        </Button>
         <span>{{ page + 1 }} / {{ pageCount }}</span>
-        <button
-          class="btn-secondary"
+        <Button
+          variant="secondary"
           :disabled="(page + 1) * pageSize >= total || loading"
           @click="page++"
         >
           下一页
-        </button>
+        </Button>
       </span>
     </div>
 

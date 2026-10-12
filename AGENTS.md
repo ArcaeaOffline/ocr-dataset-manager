@@ -101,6 +101,15 @@ can be reset any time by deleting `data/odm.sqlite3`.
 
 ## Conventions
 
+- Interactive components compose reka-ui primitives for behavior and are
+  styled exclusively with UnoCSS semantic tokens; reka state attributes
+  (`data-state`, `data-highlighted`, …) map to styles via UnoCSS arbitrary
+  variants (`data-[state=open]:…`). shadcn-vue is deliberately not used —
+  its component sources target Tailwind.
+- Clicking the active segment of a segmented select clears the value back
+  to unknown.
+- `vue-tsc` does not flag template tags that resolve to no component; grep
+  the template before removing a component import.
 - Commit messages: conventional-commit style (`feat:`, `fix:`, `docs:`,
   `chore:`), subject in English, body states what is here now — not the
   history of how it got that way.

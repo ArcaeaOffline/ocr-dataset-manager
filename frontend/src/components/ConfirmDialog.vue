@@ -8,6 +8,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from "reka-ui";
+import Button from "./Button.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -40,28 +41,17 @@ const emit = defineEmits<{
         </DialogDescription>
         <div class="mt-4 flex justify-end gap-2">
           <DialogClose as-child>
-            <button
-              type="button"
-              class="btn-secondary"
-              :disabled="props.busy"
-              @click="emit('update:open', false)"
-            >
+            <Button variant="secondary" :disabled="props.busy" @click="emit('update:open', false)">
               {{ props.cancelLabel ?? "取消" }}
-            </button>
+            </Button>
           </DialogClose>
-          <button
-            type="button"
-            class="inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-            :class="
-              props.destructive
-                ? 'bg-destructive text-destructive-fg'
-                : 'bg-primary text-primary-fg'
-            "
+          <Button
+            :variant="props.destructive ? 'destructive' : 'primary'"
             :disabled="props.busy"
             @click="emit('confirm')"
           >
             {{ props.confirmLabel }}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </DialogPortal>

@@ -1,7 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import {
+  ComboboxAnchor,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxPortal,
+  ComboboxRoot,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from "reka-ui";
 import { catalog, type Candidate, type PartnerEntry } from "../api";
-import Modal from "./Modal.vue";
+import Button from "./Button.vue";
 
 const props = defineProps<{
   candidates: Candidate[];
@@ -14,26 +28,19 @@ const emit = defineEmits<{
 }>();
 
 const text = ref(props.modelValue ?? "");
-const open = ref(false);
 const panelOpen = ref(false);
 const query = ref("");
 
-function onInput(event: Event) {
-  text.value = (event.target as HTMLInputElement).value;
-  open.value = true;
-  emit("update:modelValue", text.value.trim() === "" ? null : text.value);
-}
+// free text is the value
+watch(text, (value) => {
+  emit("update:modelValue", value.trim() === "" ? null : value);
+});
 
-function pick(id: string) {
-  text.value = id;
-  emit("update:modelValue", id);
-  open.value = false;
-}
-
-function onBlur() {
-  setTimeout(() => {
-    open.value = false;
-  }, 120);
+// the single-select listbox deselects the picked candidate on re-click by
+// emitting undefined; the field keeps its text in that case
+function onSelect(value: unknown) {
+  if (typeof value !== "string") return;
+  text.value = value;
 }
 
 const filteredPartners = computed(() => {
@@ -44,80 +51,95 @@ const filteredPartners = computed(() => {
 
 function selectFromPanel(id: string) {
   panelOpen.value = false;
-  pick(id);
+  text.value = id;
 }
 </script>
 
 <template>
-  <div class="relative">
-    <div class="flex items-end gap-1">
+  <ComboboxRoot
+    :model-value="props.modelValue"
+    :reset-search-term-on-blur="false"
+    :reset-search-term-on-select="false"
+    ignore-filter
+    open-on-focus
+    @update:model-value="onSelect"
+  >
+    <ComboboxAnchor class="flex items-end gap-1">
       <label class="block flex-1">
         <span class="field-label">partner_id</span>
-        <input
-          class="field-input mt-0.5"
-          :value="text"
-          placeholder="留空 = 未知"
-          @input="onInput"
-          @focus="open = true"
-          @blur="onBlur"
-        />
+        <ComboboxInput v-model="text" class="field-input mt-0.5" placeholder="留空 = 未知" />
       </label>
-      <button class="btn-secondary" title="浏览全部搭档" @click="panelOpen = true">
+      <Button variant="secondary" title="浏览全部搭档" @click="panelOpen = true">
         <i class="i-lucide-layout-grid size-4" />
         浏览
-      </button>
-    </div>
-    <div
-      v-if="open && props.candidates.length > 0"
-      class="absolute z-10 mt-0.5 w-full overflow-y-auto rounded border border-border bg-card shadow-lg"
-    >
-      <button
-        v-for="c in props.candidates"
-        :key="c.image_id"
-        type="button"
-        class="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-secondary"
-        @mousedown.prevent="pick(c.image_id)"
-      >
-        <img
-          :src="catalog.partnerIconUrl(c.image_id)"
-          class="h-6 w-6 rounded object-cover"
-          :alt="c.image_id"
-        />
-        <span class="flex-1 font-mono">{{ c.image_id }}</span>
-        <span class="text-xs text-muted-foreground"> {{ (c.confidence * 100).toFixed(1) }}% </span>
-      </button>
-    </div>
+      </Button>
+    </ComboboxAnchor>
 
-    <Modal v-if="panelOpen" @close="panelOpen = false">
-      <h3 class="mb-2 text-sm font-semibold">选择搭档</h3>
-      <input v-model="query" class="field-input" placeholder="按 id 过滤…" autofocus />
-      <div class="mt-2 max-h-80 overflow-y-auto">
-        <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          <button
-            v-for="p in filteredPartners"
-            :key="p.id"
-            type="button"
-            class="rounded border border-border p-1 hover:border-ring"
-            @click="selectFromPanel(p.id)"
-          >
-            <img
-              :src="catalog.partnerIconUrl(p.id)"
-              class="aspect-square w-full rounded object-cover"
-              :alt="p.id"
-              loading="lazy"
-            />
-            <div class="mt-0.5 text-center font-mono text-xs text-muted-foreground">
-              {{ p.id }}
-            </div>
-          </button>
-        </div>
-        <div
-          v-if="filteredPartners.length === 0"
-          class="px-2 py-4 text-center text-sm text-muted-foreground"
+    <!-- candidates are OCR proposals, not catalog entries, so they never
+         filter against the typed text -->
+    <ComboboxPortal v-if="props.candidates.length > 0">
+      <ComboboxContent
+        position="popper"
+        :side-offset="4"
+        class="z-10 w-[var(--reka-popper-anchor-width)] overflow-y-auto rounded border border-border bg-card shadow-lg"
+      >
+        <ComboboxItem
+          v-for="c in props.candidates"
+          :key="c.image_id"
+          :value="c.image_id"
+          class="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-secondary"
         >
-          无匹配结果
+          <img
+            :src="catalog.partnerIconUrl(c.image_id)"
+            class="h-6 w-6 rounded object-cover"
+            :alt="c.image_id"
+          />
+          <span class="flex-1 font-mono">{{ c.image_id }}</span>
+          <span class="text-xs text-muted-foreground">
+            {{ (c.confidence * 100).toFixed(1) }}%
+          </span>
+        </ComboboxItem>
+      </ComboboxContent>
+    </ComboboxPortal>
+  </ComboboxRoot>
+
+  <DialogRoot :open="panelOpen" @update:open="panelOpen = $event">
+    <DialogPortal>
+      <DialogOverlay class="fixed inset-0 z-50 bg-black/60" />
+      <DialogContent
+        class="fixed left-1/2 top-1/2 z-50 max-h-full w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-4 shadow-xl focus:outline-none"
+      >
+        <DialogTitle class="mb-2 text-sm font-semibold">选择搭档</DialogTitle>
+        <DialogDescription class="sr-only">按 id 过滤，点击头像选择</DialogDescription>
+        <input v-model="query" class="field-input" placeholder="按 id 过滤…" autofocus />
+        <div class="mt-2 max-h-80 overflow-y-auto">
+          <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            <button
+              v-for="p in filteredPartners"
+              :key="p.id"
+              type="button"
+              class="rounded border border-border p-1 hover:border-ring"
+              @click="selectFromPanel(p.id)"
+            >
+              <img
+                :src="catalog.partnerIconUrl(p.id)"
+                class="aspect-square w-full rounded object-cover"
+                :alt="p.id"
+                loading="lazy"
+              />
+              <div class="mt-0.5 text-center font-mono text-xs text-muted-foreground">
+                {{ p.id }}
+              </div>
+            </button>
+          </div>
+          <div
+            v-if="filteredPartners.length === 0"
+            class="px-2 py-4 text-center text-sm text-muted-foreground"
+          >
+            无匹配结果
+          </div>
         </div>
-      </div>
-    </Modal>
-  </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>

@@ -38,8 +38,10 @@ export default defineConfig({
     "field-input":
       "w-full rounded border border-input bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-ring",
     "field-label": "text-xs text-muted-foreground",
-    btn: "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-primary text-primary-fg disabled:opacity-50 cursor-pointer",
+    btn: "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-primary text-primary-fg hover:opacity-80 disabled:opacity-50 cursor-pointer",
     "btn-secondary":
-      "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-secondary text-secondary-fg border border-border cursor-pointer",
+      "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-secondary text-secondary-fg border border-border hover:opacity-80 cursor-pointer",
+    "btn-destructive":
+      "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-destructive text-destructive-fg hover:opacity-80 disabled:opacity-50 cursor-pointer",
   },
 });

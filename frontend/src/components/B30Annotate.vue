@@ -14,6 +14,7 @@ import {
   type SongEntry,
 } from "../api";
 import NumberField from "../components/NumberField.vue";
+import Button from "../components/Button.vue";
 import CardOverview from "../components/CardOverview.vue";
 import CheckedToggle from "../components/CheckedToggle.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
@@ -326,20 +327,22 @@ function onKeydown(event: KeyboardEvent) {
     void saveChecked();
     return;
   }
-  // arrows move the caret inside text fields, so only flip cards outside them
   const target = event.target;
-  if (
+  // arrows flip cards, but text fields need them for the caret and
+  // role=group widgets (SegmentedSelect) for roving focus — yield to both
+  const inTextField =
     target instanceof HTMLElement &&
-    (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
-  ) {
-    return;
-  }
-  if (event.key === "Escape") {
+    (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+  const inRovingFocusGroup =
+    target instanceof HTMLElement && target.closest('[role="group"]') != null;
+  if (event.key === "Escape" && !inTextField) {
     viewerOpen.value = false;
     overviewOpen.value = false;
   }
-  if (event.key === "ArrowLeft") previousCard();
-  if (event.key === "ArrowRight") nextCard();
+  if (!inTextField && !inRovingFocusGroup) {
+    if (event.key === "ArrowLeft") previousCard();
+    if (event.key === "ArrowRight") nextCard();
+  }
 }
 
 onMounted(() => {
@@ -369,7 +372,7 @@ onUnmounted(() => {
         <img
           :key="currentIndex"
           :src="api.b30CardUrl(imageId, currentIndex, layout ?? undefined)"
-          class="block max-h-[calc(100dvh-12rem)] w-full cursor-zoom-in object-contain"
+          class="mx-auto block max-h-[calc(100dvh-12rem)] max-w-full cursor-zoom-in object-contain"
           :alt="`card ${currentIndex}`"
           title="点击打开卡片总览"
           @load="cardReady = true"
@@ -390,14 +393,13 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="mt-2 flex items-center justify-between gap-2">
-        <button class="btn-secondary" :disabled="currentIndex === 0" @click="previousCard">
+        <Button variant="secondary" :disabled="currentIndex === 0" @click="previousCard">
           <i class="i-lucide-arrow-left size-4" />
           上一卡
-        </button>
+        </Button>
         <div class="flex items-center gap-1">
           <span class="text-sm tabular-nums text-muted-foreground">
-            卡 {{ currentIndex + 1 }} / {{ componentCount || "?" }} ·
-            {{ layout ?? "布局未知" }}
+            卡 {{ currentIndex + 1 }} / {{ componentCount || "?" }}
           </span>
           <button
             type="button"
@@ -417,14 +419,14 @@ onUnmounted(() => {
             <i class="i-lucide-layout-grid size-4" />
           </button>
         </div>
-        <button
-          class="btn-secondary"
+        <Button
+          variant="secondary"
           :disabled="layout != null && currentIndex >= componentCount - 1"
           @click="nextCard"
         >
           下一卡
           <i class="i-lucide-arrow-right size-4" />
-        </button>
+        </Button>
       </div>
       <p class="mt-1 break-all text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
     </section>
@@ -464,7 +466,7 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <button class="btn" :disabled="busyAction !== null || layout == null" @click="saveChecked">
+        <Button :disabled="busyAction !== null || layout == null" @click="saveChecked">
           <i
             :class="
               busyAction === 'saveChecked'
@@ -473,9 +475,9 @@ onUnmounted(() => {
             "
           />
           确认并{{ currentIndex >= componentCount - 1 ? "下一图" : "下一卡" }}
-        </button>
-        <button
-          class="btn-secondary"
+        </Button>
+        <Button
+          variant="secondary"
           :disabled="busyAction !== null || layout == null"
           @click="saveDraft"
         >
@@ -487,8 +489,8 @@ onUnmounted(() => {
             "
           />
           保存草稿
-        </button>
-        <button class="btn-secondary" :disabled="busyAction !== null" @click="skip">
+        </Button>
+        <Button variant="secondary" :disabled="busyAction !== null" @click="skip">
           <i
             :class="
               busyAction === 'skip'
@@ -497,7 +499,7 @@ onUnmounted(() => {
             "
           />
           跳过此图
-        </button>
+        </Button>
       </div>
     </section>
 
