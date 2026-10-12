@@ -2,6 +2,8 @@
 const props = defineProps<{
   label: string;
   modelValue: number | null;
+  /** the value is the machine prefill proposal; shows a marker by the label */
+  prefilled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -16,7 +18,14 @@ function onInput(event: Event) {
 
 <template>
   <label class="block">
-    <span class="field-label">{{ props.label }}</span>
+    <span class="field-label">
+      {{ props.label }}
+      <span
+        v-if="props.prefilled"
+        class="ml-0.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
+        title="OCR 预识别"
+      />
+    </span>
     <input
       class="field-input mt-0.5"
       type="number"

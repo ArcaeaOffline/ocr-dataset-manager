@@ -24,6 +24,7 @@ import LoadingMask from "../components/LoadingMask.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
 import { useBusy } from "../composables/useBusy";
+import { prefilledKeys, useFieldSources } from "../composables/useFieldSources";
 import { useRequest } from "../composables/useRequest";
 import { voteHint } from "../warnings";
 
@@ -68,7 +69,15 @@ function emptyComponent(index: number): B30ComponentFields {
   };
 }
 
-const form = reactive<B30ComponentFields>(emptyComponent(0));
+const { form, prefilled, markPrefilled } = useFieldSources(
+  reactive<B30ComponentFields>(emptyComponent(0)),
+);
+
+// fields that can carry a prefill mark; index is not a rendered field and
+// checked has no proposal
+const sourceKeys = Object.keys(emptyComponent(0)).filter(
+  (key) => key !== "index" && key !== "checked",
+) as (keyof B30ComponentFields)[];
 
 const { data: layouts } = useRequest("b30-layouts", () => api.getB30Layouts(), {
   initialData: [] as B30LayoutInfo[],
@@ -139,6 +148,7 @@ function loadCard(index: number) {
     }
   }
   Object.assign(form, merged);
+  markPrefilled(prefilledKeys(sourceKeys, cached?.saved, cached?.prefill));
 }
 
 // the OCR proposal for a card is computed on first view (~0.4s), so the
@@ -452,25 +462,32 @@ onUnmounted(() => {
           label="rating_class"
           :options="ratingClassOptions"
           :hint="ratingHint"
+          :prefilled="prefilled.has('rating_class')"
         />
         <SegmentedSelect
           v-model="form.clear_status"
           label="clear_status"
           :options="clearStatusOptions"
+          :prefilled="prefilled.has('clear_status')"
         />
         <SongPicker
           v-model="form.song_id"
           :candidates="cardData[currentIndex]?.prefill?.song_id_candidates ?? []"
           :songs="songs"
           :loading="songsLoading"
+          :prefilled="prefilled.has('song_id')"
         />
 
         <div class="grid grid-cols-3 gap-2">
-          <NumberField v-model="form.score" label="score" />
-          <NumberField v-model="form.pure" label="pure" />
-          <NumberField v-model="form.pure_shiny" label="pure_shiny" />
-          <NumberField v-model="form.far" label="far" />
-          <NumberField v-model="form.lost" label="lost" />
+          <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')" />
+          <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')" />
+          <NumberField
+            v-model="form.pure_shiny"
+            label="pure_shiny"
+            :prefilled="prefilled.has('pure_shiny')"
+          />
+          <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')" />
+          <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')" />
         </div>
 
         <CheckedToggle v-model="form.checked" class="mt-1" />

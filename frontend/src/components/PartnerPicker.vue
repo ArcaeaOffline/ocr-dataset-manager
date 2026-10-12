@@ -21,6 +21,8 @@ const props = defineProps<{
   candidates: Candidate[];
   partners: PartnerEntry[];
   modelValue: string | null;
+  /** the value is the machine prefill proposal; shows a marker by the label */
+  prefilled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -75,7 +77,14 @@ function selectFromPanel(id: string) {
   >
     <ComboboxAnchor class="flex items-end gap-1">
       <label class="block flex-1">
-        <span class="field-label">partner_id</span>
+        <span class="field-label">
+          partner_id
+          <span
+            v-if="props.prefilled"
+            class="ml-0.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
+            title="OCR 预识别"
+          />
+        </span>
         <ComboboxInput v-model="text" class="field-input mt-0.5" placeholder="留空 = 未知" />
       </label>
       <Button variant="secondary" title="浏览全部搭档" @click="panelOpen = true">

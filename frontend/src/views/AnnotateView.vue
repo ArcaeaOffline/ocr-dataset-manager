@@ -23,6 +23,7 @@ import PartnerPicker from "../components/PartnerPicker.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
 import { computeWarnings, voteHint } from "../warnings";
+import { prefilledKeys, useFieldSources } from "../composables/useFieldSources";
 import { useBusy } from "../composables/useBusy";
 import { useRequest } from "../composables/useRequest";
 
@@ -64,7 +65,7 @@ const emptyFields = (): ResultFields => ({
   checked: false,
 });
 
-const form = reactive<ResultFields>(emptyFields());
+const { form, prefilled, markPrefilled } = useFieldSources(reactive<ResultFields>(emptyFields()));
 
 const roisTypeOptions = [
   { value: null, label: "未知" },
@@ -188,13 +189,16 @@ function fillEmptyFromPrefill(prefill: Prefill) {
     ["far_early", prefill.far_early],
     ["far_late", prefill.far_late],
   ];
+  const filled: (keyof ResultFields)[] = [];
   for (const [key, value] of candidates) {
     const current = form[key];
     if (value != null && current == null) {
       // union-keyed writes demand an intersection of every field's type
       (form as Record<string, unknown>)[key] = value;
+      filled.push(key);
     }
   }
+  for (const key of filled) prefilled.add(key);
 }
 
 const songs = computed(() => data.value.songs);
@@ -219,6 +223,13 @@ watch(
       }
       Object.assign(form, merged);
     }
+    markPrefilled(
+      prefilledKeys(
+        Object.keys(emptyFields()) as (keyof ResultFields)[],
+        loaded.saved,
+        loaded.prefill,
+      ),
+    );
     void preloadNext();
   },
   { immediate: true },
@@ -343,45 +354,90 @@ onUnmounted(() => {
 
     <section class="space-y-4">
       <div class="relative rounded border border-border bg-card p-3 space-y-3">
-        <SegmentedSelect v-model="form.rois_type" label="rois_type" :options="roisTypeOptions" />
+        <SegmentedSelect
+          v-model="form.rois_type"
+          label="rois_type"
+          :options="roisTypeOptions"
+          :prefilled="prefilled.has('rois_type')"
+        />
         <SegmentedSelect
           v-model="form.rating_class"
           label="rating_class"
           :options="ratingClassOptions"
           :hint="ratingHint"
+          :prefilled="prefilled.has('rating_class')"
         />
         <SegmentedSelect
           v-model="form.clear_status"
           label="clear_status"
           :options="clearStatusOptions"
           :hint="clearHint"
+          :prefilled="prefilled.has('clear_status')"
         />
 
         <div class="grid grid-cols-1 gap-2">
-          <SongPicker v-model="form.song_id" :candidates="songCandidates" :songs="songs" />
+          <SongPicker
+            v-model="form.song_id"
+            :candidates="songCandidates"
+            :songs="songs"
+            :prefilled="prefilled.has('song_id')"
+          />
           <PartnerPicker
             v-model="form.partner_id"
             :candidates="partnerCandidates"
             :partners="partners"
+            :prefilled="prefilled.has('partner_id')"
           />
         </div>
 
         <div class="grid grid-cols-3 gap-2">
-          <NumberField v-model="form.score" label="score" />
-          <NumberField v-model="form.pure" label="pure" />
-          <NumberField v-model="form.far" label="far" />
-          <NumberField v-model="form.lost" label="lost" />
-          <NumberField v-model="form.max_recall" label="max_recall" />
-          <NumberField v-model="form.pure_shiny" label="pure_shiny" />
-          <NumberField v-model="form.high_score" label="high_score" />
-          <NumberField v-model="form.high_score_delta" label="high_score_delta" />
+          <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')" />
+          <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')" />
+          <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')" />
+          <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')" />
+          <NumberField
+            v-model="form.max_recall"
+            label="max_recall"
+            :prefilled="prefilled.has('max_recall')"
+          />
+          <NumberField
+            v-model="form.pure_shiny"
+            label="pure_shiny"
+            :prefilled="prefilled.has('pure_shiny')"
+          />
+          <NumberField
+            v-model="form.high_score"
+            label="high_score"
+            :prefilled="prefilled.has('high_score')"
+          />
+          <NumberField
+            v-model="form.high_score_delta"
+            label="high_score_delta"
+            :prefilled="prefilled.has('high_score_delta')"
+          />
         </div>
 
         <div class="grid grid-cols-4 gap-2">
-          <NumberField v-model="form.pure_early" label="pure_early" />
-          <NumberField v-model="form.pure_late" label="pure_late" />
-          <NumberField v-model="form.far_early" label="far_early" />
-          <NumberField v-model="form.far_late" label="far_late" />
+          <NumberField
+            v-model="form.pure_early"
+            label="pure_early"
+            :prefilled="prefilled.has('pure_early')"
+          />
+          <NumberField
+            v-model="form.pure_late"
+            label="pure_late"
+            :prefilled="prefilled.has('pure_late')"
+          />
+          <NumberField
+            v-model="form.far_early"
+            label="far_early"
+            :prefilled="prefilled.has('far_early')"
+          />
+          <NumberField
+            v-model="form.far_late"
+            label="far_late"
+            :prefilled="prefilled.has('far_late')"
+          />
         </div>
 
         <CheckedToggle v-model="form.checked" class="mt-1" />

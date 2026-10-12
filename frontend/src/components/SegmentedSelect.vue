@@ -8,6 +8,8 @@ const props = defineProps<{
   modelValue: T;
   /** shown below the segments, e.g. a low-confidence prefill warning */
   hint?: string | null;
+  /** the value is the machine prefill proposal; shows a marker by the label */
+  prefilled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -31,7 +33,14 @@ function onGroupUpdate(value: unknown) {
 
 <template>
   <div>
-    <span class="field-label">{{ props.label }}</span>
+    <span class="field-label">
+      {{ props.label }}
+      <span
+        v-if="props.prefilled"
+        class="ml-0.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
+        title="OCR 预识别"
+      />
+    </span>
     <ToggleGroupRoot
       type="single"
       class="mt-1 flex flex-wrap gap-1"
