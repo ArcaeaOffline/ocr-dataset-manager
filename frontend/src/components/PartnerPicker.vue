@@ -36,6 +36,15 @@ watch(text, (value) => {
   emit("update:modelValue", value.trim() === "" ? null : value);
 });
 
+// prefill fills partner_id after mount (flow switch fetches it separately);
+// the input is driven by `text`, so modelValue changes must sync back
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value !== text.value.trim()) text.value = value ?? "";
+  },
+);
+
 // the single-select listbox deselects the picked candidate on re-click by
 // emitting undefined; the field keeps its text in that case
 function onSelect(value: unknown) {
