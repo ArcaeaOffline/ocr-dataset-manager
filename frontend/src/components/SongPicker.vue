@@ -21,6 +21,9 @@ const props = defineProps<{
   candidates: Candidate[];
   songs: SongEntry[];
   modelValue: string | null;
+  /** the song catalog is still loading; the panel shows a spinner
+   * instead of a false "no matches" */
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -139,7 +142,15 @@ function selectFromPanel(id: string) {
             </span>
           </button>
           <div
-            v-if="filteredSongs.length === 0"
+            v-if="props.loading"
+            class="px-2 py-4 text-center text-sm text-muted-foreground"
+            aria-busy="true"
+          >
+            <i class="i-lucide-loader-circle size-4 animate-spin" />
+            目录加载中…
+          </div>
+          <div
+            v-else-if="filteredSongs.length === 0"
             class="px-2 py-4 text-center text-sm text-muted-foreground"
           >
             无匹配结果

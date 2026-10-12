@@ -20,6 +20,7 @@ import CheckedToggle from "../components/CheckedToggle.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FlowSelector from "../components/FlowSelector.vue";
 import ImageViewer from "../components/ImageViewer.vue";
+import LoadingMask from "../components/LoadingMask.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
 import SongPicker from "../components/SongPicker.vue";
 import { useBusy } from "../composables/useBusy";
@@ -88,6 +89,7 @@ const componentCount = computed(() => {
 
 const filename = ref<string | null>(null);
 const songs = ref<SongEntry[]>([]);
+const songsLoading = ref(true);
 
 const { data, loading } = useRequest(
   imageId,
@@ -115,7 +117,8 @@ const { data, loading } = useRequest(
 catalog
   .songs()
   .then((list) => (songs.value = list))
-  .catch(() => null);
+  .catch(() => null)
+  .finally(() => (songsLoading.value = false));
 
 const savedComponents = computed(() => data.value?.components ?? []);
 const checkedCount = computed(() => savedComponents.value.filter((c) => c.checked).length);
@@ -150,17 +153,21 @@ async function fetchCardPrefill(id: string, index: number) {
   cardData[index] = { prefill: null, saved: existing?.saved ?? null, loading: true };
   try {
     const prefill = await api.getB30ComponentPrefill(id, index, fetchLayout ?? undefined);
-    // a layout switch while the request ran invalidates the proposal
-    if (fetchLayout === layout.value) {
+    // an image or layout switch while the request ran invalidates the proposal
+    if (id === imageId.value && fetchLayout === layout.value) {
       cardData[index] = { prefill, saved: existing?.saved ?? null, loading: false };
     }
   } catch (e) {
     toast.error(`预识别失败：${(e as Error).message}`);
   } finally {
-    const entry = cardData[index];
-    if (entry?.loading) cardData[index] = { ...entry, loading: false };
+    if (id === imageId.value) {
+      const entry = cardData[index];
+      if (entry?.loading) cardData[index] = { ...entry, loading: false };
+    }
   }
-  if (currentIndex.value === index && fetchLayout === layout.value) loadCard(index);
+  if (id === imageId.value && currentIndex.value === index && fetchLayout === layout.value) {
+    loadCard(index);
+  }
 }
 
 watch(
@@ -277,6 +284,8 @@ async function save(checked: boolean): Promise<boolean> {
 }
 
 async function saveChecked() {
+  // the form holds the previous image's values until the load lands
+  if (loading.value) return;
   await withBusy("saveChecked", async () => {
     if (!(await save(true))) return;
     if (currentIndex.value >= componentCount.value - 1) {
@@ -288,12 +297,14 @@ async function saveChecked() {
 }
 
 async function saveDraft() {
+  if (loading.value) return;
   await withBusy("saveDraft", async () => {
     await save(false);
   });
 }
 
 async function skip() {
+  if (loading.value) return;
   await withBusy("skip", goNext);
 }
 
@@ -354,10 +365,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="grid place-items-center py-24 text-muted-foreground" aria-busy="true">
-    <i class="i-lucide-loader-circle size-6 animate-spin" />
-  </div>
-  <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
+  <!-- the form stays mounted under the mask: picker inputs sync through
+       modelValue watches that a mount/unmount swap would bypass -->
+  <div class="relative grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
     <section
       class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
     >
@@ -432,7 +442,7 @@ onUnmounted(() => {
     </section>
 
     <section class="space-y-4">
-      <div class="space-y-3 rounded border border-border bg-card p-3">
+      <div class="relative space-y-3 rounded border border-border bg-card p-3">
         <p class="text-xs text-muted-foreground">
           已确认 {{ checkedCount }} / {{ componentCount || "?" }} 卡
         </p>
@@ -452,6 +462,7 @@ onUnmounted(() => {
           v-model="form.song_id"
           :candidates="cardData[currentIndex]?.prefill?.song_id_candidates ?? []"
           :songs="songs"
+          :loading="songsLoading"
         />
 
         <div class="grid grid-cols-3 gap-2">
@@ -463,6 +474,8 @@ onUnmounted(() => {
         </div>
 
         <CheckedToggle v-model="form.checked" class="mt-1" />
+
+        <LoadingMask v-if="cardData[currentIndex]?.loading" tone="card" size="size-5" />
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -539,5 +552,7 @@ onUnmounted(() => {
       @close="overviewOpen = false"
       @select="selectCard"
     />
+
+    <LoadingMask v-if="loading" tone="page" />
   </div>
 </template>

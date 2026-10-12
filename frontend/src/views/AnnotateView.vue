@@ -17,6 +17,7 @@ import Button from "../components/Button.vue";
 import CheckedToggle from "../components/CheckedToggle.vue";
 import FlowSelector from "../components/FlowSelector.vue";
 import ImageViewer from "../components/ImageViewer.vue";
+import LoadingMask from "../components/LoadingMask.vue";
 import NumberField from "../components/NumberField.vue";
 import PartnerPicker from "../components/PartnerPicker.vue";
 import SegmentedSelect from "../components/SegmentedSelect.vue";
@@ -135,6 +136,7 @@ const { data, loading } = useRequest(
 // persisted; queue kind derives from saved rows)
 const flowOverride = ref<"device" | "b30" | null>(null);
 const devicePrefillFetched = ref(false);
+const prefillLoading = ref(false);
 const flow = computed<"device" | "b30">(
   () => flowOverride.value ?? (data.value?.b30Layout != null ? "b30" : "device"),
 );
@@ -149,13 +151,19 @@ async function onFlowChange(value: "device" | "b30") {
 async function fetchDevicePrefill() {
   if (devicePrefillFetched.value || data.value?.prefill != null) return;
   devicePrefillFetched.value = true;
+  const id = imageId.value;
+  prefillLoading.value = true;
   try {
-    const res = await api.getPrefill(imageId.value, "device");
+    const res = await api.getPrefill(id, "device");
+    // navigation while the request ran would target a different image
+    if (id !== imageId.value) return;
     const prefill = res.kind === "device" ? res.prefill : null;
     if (data.value != null) data.value = { ...data.value, prefill };
     if (prefill != null) fillEmptyFromPrefill(prefill);
   } catch (e) {
     toast.error(`预识别失败：${(e as Error).message}`);
+  } finally {
+    prefillLoading.value = false;
   }
 }
 
@@ -265,12 +273,15 @@ async function goNext() {
 }
 
 async function saveAndNext() {
+  // the form holds the previous image's values until the load lands
+  if (loading.value) return;
   await withBusy("saveAndNext", async () => {
     if (await save()) await goNext();
   });
 }
 
 async function saveChecked() {
+  if (loading.value) return;
   form.checked = true;
   await withBusy("saveChecked", async () => {
     if (await save()) await goNext();
@@ -278,6 +289,7 @@ async function saveChecked() {
 }
 
 async function skip() {
+  if (loading.value) return;
   await withBusy("skip", goNext);
 }
 
@@ -302,14 +314,9 @@ onUnmounted(() => {
 
 <template>
   <B30Annotate v-if="flow === 'b30'" :flow="flow" @switch="onFlowChange" />
-  <div
-    v-else-if="loading"
-    class="grid place-items-center py-24 text-muted-foreground"
-    aria-busy="true"
-  >
-    <i class="i-lucide-loader-circle size-6 animate-spin" />
-  </div>
-  <div v-else class="grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
+  <!-- the form stays mounted under the mask: picker inputs sync through
+       modelValue watches that a mount/unmount swap would bypass -->
+  <div v-else class="relative grid gap-4 py-4 lg:grid-cols-[1fr_360px]">
     <section
       class="sticky top-0 z-10 self-start bg-background pb-1 lg:top-4 lg:z-0 lg:bg-transparent lg:pb-0"
     >
@@ -335,7 +342,7 @@ onUnmounted(() => {
     </section>
 
     <section class="space-y-4">
-      <div class="rounded border border-border bg-card p-3 space-y-3">
+      <div class="relative rounded border border-border bg-card p-3 space-y-3">
         <SegmentedSelect v-model="form.rois_type" label="rois_type" :options="roisTypeOptions" />
         <SegmentedSelect
           v-model="form.rating_class"
@@ -378,6 +385,8 @@ onUnmounted(() => {
         </div>
 
         <CheckedToggle v-model="form.checked" class="mt-1" />
+
+        <LoadingMask v-if="prefillLoading" tone="card" size="size-5" />
       </div>
 
       <div
@@ -426,6 +435,8 @@ onUnmounted(() => {
         </Button>
       </div>
     </section>
+
+    <LoadingMask v-if="loading" tone="page" />
 
     <ImageViewer
       :open="viewerOpen"
