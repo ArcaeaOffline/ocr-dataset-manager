@@ -14,6 +14,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from ..config import PARTNER_ICONS_DIR, SONGLIST_PATH
 
@@ -22,6 +23,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 
 _PARTNER_ID_RE = re.compile(r"^\d+u?$")
+
+
+class SongOut(BaseModel):
+    id: str
+    title: str
+
+
+class PartnerOut(BaseModel):
+    id: str
 
 
 @lru_cache(maxsize=4)
@@ -39,19 +49,22 @@ def _parse_songlist(path: Path, _mtime: int) -> list[dict[str, str]]:
 
 
 @router.get("/songs")
-def list_songs() -> list[dict[str, str]]:
+def list_songs() -> list[SongOut]:
     if not SONGLIST_PATH.exists():
         return []
-    return _parse_songlist(SONGLIST_PATH, int(SONGLIST_PATH.stat().st_mtime))
+    return [
+        SongOut(id=song["id"], title=song["title"])
+        for song in _parse_songlist(SONGLIST_PATH, int(SONGLIST_PATH.stat().st_mtime))
+    ]
 
 
 @router.get("/partners")
-def list_partners() -> list[dict[str, str]]:
+def list_partners() -> list[PartnerOut]:
     ids = sorted(
         (p.stem for p in PARTNER_ICONS_DIR.iterdir() if p.is_file()),
         key=lambda s: (int(s.rstrip("u")), s.endswith("u")),
     )
-    return [{"id": i} for i in ids]
+    return [PartnerOut(id=i) for i in ids]
 
 
 @router.get("/partners/{partner_id}/icon")

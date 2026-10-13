@@ -18,6 +18,10 @@ arcaea-offline-ocr = { path = "../core-ocr" }
 # isort, pyupgrade, flake8-bugbear, flake8-simplify
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.flake8-bugbear]
+# Depends() in parameter defaults is FastAPI's dependency declaration
+extend-immutable-calls = ["fastapi.Depends"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
@@ -34,6 +38,10 @@ reportUnknownVariableType = "none"
 reportUnknownMemberType = "none"
 reportUnknownParameterType = "none"
 reportUnknownLambdaType = "none"
+
+# Depends() in endpoint parameter defaults is FastAPI's dependency
+# declaration syntax
+reportCallInDefaultInitializer = "none"
 
 # SQLAlchemy declarative dunders (__tablename__, __table_args__) can't take
 # useful annotations

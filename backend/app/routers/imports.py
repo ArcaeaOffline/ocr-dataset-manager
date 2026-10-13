@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from ..db import SessionLocal
+from ..db import get_session
 from ..models import ImportBatch
 from ..services import imports
 
@@ -42,31 +44,32 @@ class ImportBatchOut(BaseModel):
 
 
 @router.post("")
-def create_import(req: ImportRequest) -> ImportBatchOut:
+def create_import(
+    req: ImportRequest, session: Session = Depends(get_session)
+) -> ImportBatchOut:
     try:
         batch_id = imports.start_import(req.source_path, recursive=req.recursive)
     except NotADirectoryError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
-    with SessionLocal() as session:
-        batch = session.get(ImportBatch, batch_id)
-        if batch is None:
-            raise HTTPException(status_code=404, detail="batch not found")
-        return ImportBatchOut.of(batch)
+    batch = session.get(ImportBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="batch not found")
+    return ImportBatchOut.of(batch)
 
 
 @router.get("")
-def list_imports() -> list[ImportBatchOut]:
-    with SessionLocal() as session:
-        batches = (
-            session.query(ImportBatch).order_by(ImportBatch.started_at.desc()).limit(50)
-        )
-        return [ImportBatchOut.of(b) for b in batches]
+def list_imports(session: Session = Depends(get_session)) -> list[ImportBatchOut]:
+    batches = session.scalars(
+        select(ImportBatch).order_by(ImportBatch.started_at.desc()).limit(50)
+    ).all()
+    return [ImportBatchOut.of(b) for b in batches]
 
 
 @router.get("/{batch_id}")
-def get_import(batch_id: str) -> ImportBatchOut:
-    with SessionLocal() as session:
-        batch = session.get(ImportBatch, batch_id)
-        if batch is None:
-            raise HTTPException(status_code=404, detail="batch not found")
-        return ImportBatchOut.of(batch)
+def get_import(
+    batch_id: str, session: Session = Depends(get_session)
+) -> ImportBatchOut:
+    batch = session.get(ImportBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="batch not found")
+    return ImportBatchOut.of(batch)
