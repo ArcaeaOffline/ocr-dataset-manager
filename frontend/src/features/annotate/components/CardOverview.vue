@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DialogContent, DialogDescription, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
-import { api } from "../api";
+import { api } from "@/api";
 
 const props = defineProps<{
   open: boolean;

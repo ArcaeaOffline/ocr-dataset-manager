@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { toast } from "vue-sonner";
-import { api, type ImageItem, type QueueKind } from "../api";
-import Button from "../components/Button.vue";
-import { useRequest } from "../composables/useRequest";
+import { api, type ImageItem, type QueueKind } from "@/api";
+import Button from "@/components/ui/Button.vue";
+import { useRequest } from "@/composables/useRequest";
 
 const uncheckedOnly = ref(true);
 const kind = ref<QueueKind | null>(null);

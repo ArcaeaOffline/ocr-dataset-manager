@@ -12,21 +12,21 @@ import {
   type B30LayoutInfo,
   type B30Result,
   type SongEntry,
-} from "../api";
-import NumberField from "../components/NumberField.vue";
-import Button from "../components/Button.vue";
-import CardOverview from "../components/CardOverview.vue";
-import CheckedToggle from "../components/CheckedToggle.vue";
-import ConfirmDialog from "../components/ConfirmDialog.vue";
-import FlowSelector from "../components/FlowSelector.vue";
-import ImageViewer from "../components/ImageViewer.vue";
-import LoadingMask from "../components/LoadingMask.vue";
-import SegmentedSelect from "../components/SegmentedSelect.vue";
-import SongPicker from "../components/SongPicker.vue";
-import { useBusy } from "../composables/useBusy";
-import { prefilledKeys, useFieldSources } from "../composables/useFieldSources";
-import { useRequest } from "../composables/useRequest";
-import { voteHint } from "../warnings";
+} from "@/api";
+import NumberField from "@/components/ui/NumberField.vue";
+import Button from "@/components/ui/Button.vue";
+import CardOverview from "./CardOverview.vue";
+import CheckedToggle from "@/components/ui/CheckedToggle.vue";
+import ConfirmDialog from "@/components/ui/ConfirmDialog.vue";
+import FlowSelector from "./FlowSelector.vue";
+import ImageViewer from "./ImageViewer.vue";
+import LoadingMask from "@/components/ui/LoadingMask.vue";
+import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
+import SongPicker from "./SongPicker.vue";
+import { useBusy } from "@/composables/useBusy";
+import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
+import { useRequest } from "@/composables/useRequest";
+import { voteHint } from "@/features/annotate/lib/warnings";
 
 const route = useRoute();
 const router = useRouter();

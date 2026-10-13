@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from "reka-ui";
-import SegmentedSelect from "./SegmentedSelect.vue";
+import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
 
 const props = defineProps<{
   flow: "device" | "b30";

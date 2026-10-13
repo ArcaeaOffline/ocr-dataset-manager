@@ -1,4 +1,4 @@
-import type { ResultFields } from "./api";
+import type { ResultFields } from "@/api";
 
 // vote counts are close when the top two differ by at most one; surface
 // that so the annotator double-checks an ambiguous prefill

@@ -14,13 +14,16 @@ import {
   DialogRoot,
   DialogTitle,
 } from "reka-ui";
-import { catalog, type Candidate, type PartnerEntry } from "../api";
-import Button from "./Button.vue";
+import type { Candidate, SongEntry } from "@/api";
+import Button from "@/components/ui/Button.vue";
 
 const props = defineProps<{
   candidates: Candidate[];
-  partners: PartnerEntry[];
+  songs: SongEntry[];
   modelValue: string | null;
+  /** the song catalog is still loading; the panel shows a spinner
+   * instead of a false "no matches" */
+  loading?: boolean;
   /** the value is the machine prefill proposal; shows a marker by the label */
   prefilled?: boolean;
 }>();
@@ -38,8 +41,7 @@ watch(text, (value) => {
   emit("update:modelValue", value.trim() === "" ? null : value);
 });
 
-// prefill fills partner_id after mount (flow switch fetches it separately);
-// the input is driven by `text`, so modelValue changes must sync back
+// prefill loads arrive after mount (and card switches swap the proposal)
 watch(
   () => props.modelValue,
   (value) => {
@@ -47,18 +49,26 @@ watch(
   },
 );
 
+const titleOf = computed(() => {
+  const map = new Map(props.songs.map((s) => [s.id, s.title]));
+  return (id: string) => map.get(id) ?? id;
+});
+
+const filteredSongs = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  const all = props.songs;
+  if (q === "") return all.slice(0, 80);
+  return all
+    .filter((s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+    .slice(0, 80);
+});
+
 // the single-select listbox deselects the picked candidate on re-click by
 // emitting undefined; the field keeps its text in that case
 function onSelect(value: unknown) {
   if (typeof value !== "string") return;
   text.value = value;
 }
-
-const filteredPartners = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  if (q === "") return props.partners;
-  return props.partners.filter((p) => p.id.toLowerCase().includes(q));
-});
 
 function selectFromPanel(id: string) {
   panelOpen.value = false;
@@ -78,7 +88,7 @@ function selectFromPanel(id: string) {
     <ComboboxAnchor class="flex items-end gap-1">
       <label class="block flex-1">
         <span class="field-label">
-          partner_id
+          song_id
           <span
             v-if="props.prefilled"
             class="ml-0.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
@@ -87,9 +97,9 @@ function selectFromPanel(id: string) {
         </span>
         <ComboboxInput v-model="text" class="field-input mt-0.5" placeholder="留空 = 未知" />
       </label>
-      <Button variant="secondary" title="浏览全部搭档" @click="panelOpen = true">
-        <i class="i-lucide-layout-grid size-4" />
-        浏览
+      <Button variant="secondary" title="搜索全目录" @click="panelOpen = true">
+        <i class="i-lucide-search size-4" />
+        搜索
       </Button>
     </ComboboxAnchor>
 
@@ -105,16 +115,11 @@ function selectFromPanel(id: string) {
           v-for="c in props.candidates"
           :key="c.image_id"
           :value="c.image_id"
-          class="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-secondary"
+          class="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-secondary"
         >
-          <img
-            :src="catalog.partnerIconUrl(c.image_id)"
-            class="h-6 w-6 rounded object-cover"
-            :alt="c.image_id"
-          />
-          <span class="flex-1 font-mono">{{ c.image_id }}</span>
-          <span class="text-xs text-muted-foreground">
-            {{ (c.confidence * 100).toFixed(1) }}%
+          <span class="truncate">{{ titleOf(c.image_id) }}</span>
+          <span class="shrink-0 text-xs text-muted-foreground">
+            {{ c.image_id }} · {{ (c.confidence * 100).toFixed(1) }}%
           </span>
         </ComboboxItem>
       </ComboboxContent>
@@ -127,31 +132,34 @@ function selectFromPanel(id: string) {
       <DialogContent
         class="fixed left-1/2 top-1/2 z-50 max-h-full w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-4 shadow-xl focus:outline-none"
       >
-        <DialogTitle class="mb-2 text-sm font-semibold">选择搭档</DialogTitle>
-        <DialogDescription class="sr-only">按 id 过滤，点击头像选择</DialogDescription>
-        <input v-model="query" class="field-input" placeholder="按 id 过滤…" autofocus />
+        <DialogTitle class="mb-2 text-sm font-semibold">搜索歌曲目录</DialogTitle>
+        <DialogDescription class="sr-only">
+          输入标题或 song_id 过滤，点击结果选择
+        </DialogDescription>
+        <input v-model="query" class="field-input" placeholder="标题或 song_id…" autofocus />
         <div class="mt-2 max-h-80 overflow-y-auto">
-          <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
-            <button
-              v-for="p in filteredPartners"
-              :key="p.id"
-              type="button"
-              class="rounded border border-border p-1 hover:border-ring"
-              @click="selectFromPanel(p.id)"
-            >
-              <img
-                :src="catalog.partnerIconUrl(p.id)"
-                class="aspect-square w-full rounded object-cover"
-                :alt="p.id"
-                loading="lazy"
-              />
-              <div class="mt-0.5 text-center font-mono text-xs text-muted-foreground">
-                {{ p.id }}
-              </div>
-            </button>
+          <button
+            v-for="s in filteredSongs"
+            :key="s.id"
+            type="button"
+            class="flex w-full items-baseline justify-between gap-3 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary"
+            @click="selectFromPanel(s.id)"
+          >
+            <span class="truncate">{{ s.title }}</span>
+            <span class="shrink-0 font-mono text-xs text-muted-foreground">
+              {{ s.id }}
+            </span>
+          </button>
+          <div
+            v-if="props.loading"
+            class="px-2 py-4 text-center text-sm text-muted-foreground"
+            aria-busy="true"
+          >
+            <i class="i-lucide-loader-circle size-4 animate-spin" />
+            目录加载中…
           </div>
           <div
-            v-if="filteredPartners.length === 0"
+            v-else-if="filteredSongs.length === 0"
             class="px-2 py-4 text-center text-sm text-muted-foreground"
           >
             无匹配结果

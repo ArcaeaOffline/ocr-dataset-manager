@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import { toast } from "vue-sonner";
-import { api, type ImportBatch } from "../api";
-import Button from "../components/Button.vue";
+import { api, type ImportBatch } from "@/api";
+import Button from "@/components/ui/Button.vue";
 
 const sourcePath = ref("");
 const recursive = ref(false);

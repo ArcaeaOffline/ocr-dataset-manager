@@ -11,21 +11,21 @@ import {
   type Prefill,
   type ResultFields,
   type SongEntry,
-} from "../api";
-import B30Annotate from "../components/B30Annotate.vue";
-import Button from "../components/Button.vue";
-import CheckedToggle from "../components/CheckedToggle.vue";
-import FlowSelector from "../components/FlowSelector.vue";
-import ImageViewer from "../components/ImageViewer.vue";
-import LoadingMask from "../components/LoadingMask.vue";
-import NumberField from "../components/NumberField.vue";
-import PartnerPicker from "../components/PartnerPicker.vue";
-import SegmentedSelect from "../components/SegmentedSelect.vue";
-import SongPicker from "../components/SongPicker.vue";
-import { computeWarnings, voteHint } from "../warnings";
-import { prefilledKeys, useFieldSources } from "../composables/useFieldSources";
-import { useBusy } from "../composables/useBusy";
-import { useRequest } from "../composables/useRequest";
+} from "@/api";
+import B30Annotate from "@/features/annotate/components/B30Annotate.vue";
+import Button from "@/components/ui/Button.vue";
+import CheckedToggle from "@/components/ui/CheckedToggle.vue";
+import FlowSelector from "@/features/annotate/components/FlowSelector.vue";
+import ImageViewer from "@/features/annotate/components/ImageViewer.vue";
+import LoadingMask from "@/components/ui/LoadingMask.vue";
+import NumberField from "@/components/ui/NumberField.vue";
+import PartnerPicker from "@/features/annotate/components/PartnerPicker.vue";
+import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
+import SongPicker from "@/features/annotate/components/SongPicker.vue";
+import { computeWarnings, voteHint } from "@/features/annotate/lib/warnings";
+import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
+import { useBusy } from "@/composables/useBusy";
+import { useRequest } from "@/composables/useRequest";
 
 const route = useRoute();
 const router = useRouter();

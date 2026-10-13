@@ -48,6 +48,8 @@ pnpm format  # oxfmt
   to unknown.
 - `vue-tsc` does not flag template tags that resolve to no component; grep
   the template before removing a component import.
+- `@/` aliases `src/` use it for cross-directory imports, keep `./` for
+  same-directory siblings.
 - Frontend uses oxc tools.
 - Commit messages: conventional-commit style (`feat:`, `fix:`, `docs:`,
   `chore:`), subject in English, body states what is here now — not the
