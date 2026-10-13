@@ -18,6 +18,9 @@ arcaea-offline-ocr = { path = "../core-ocr" }
 # isort, pyupgrade, flake8-bugbear, flake8-simplify
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
 [tool.basedpyright]
 typeCheckingMode = "recommended"
 exclude = ["scripts"]
@@ -41,3 +44,8 @@ reportUnannotatedClassAttribute = "none"
 [[tool.basedpyright.executionEnvironments]]
 root = "backend/migrations"
 reportUnusedParameter = "none"
+
+# tests assert against module internals by design
+[[tool.basedpyright.executionEnvironments]]
+root = "backend/tests"
+reportPrivateUsage = "none"

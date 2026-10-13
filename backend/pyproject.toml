@@ -10,6 +10,7 @@ dependencies = [
     "sqlalchemy>=2",
     "alembic>=1.13",
     "rapidocr[onnxruntime]>=2",
+    "typing-extensions>=4.4",
 ]
 
 [build-system]
@@ -22,5 +23,14 @@ packages = ["app"]
 [dependency-groups]
 dev = [
     "basedpyright>=1.40.1",
+    "httpx2>=2,<3",
+    "pytest>=8",
     "ruff>=0.16.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: real-OCR end-to-end smoke on fixtures; opt in with -m slow",
 ]
