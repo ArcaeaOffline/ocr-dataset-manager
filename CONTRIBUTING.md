@@ -43,3 +43,5 @@ Every PR must state how it was verified:
 
 Accepted, but judged by the same functional-only standard.
 **Craftsmanship earns no extra credit.**
+
+> This document is written by `Kimi K2.6`.
