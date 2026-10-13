@@ -1,7 +1,7 @@
 # Backend
 
-FastAPI + SQLAlchemy + SQLite service, a uv workspace member. For
-general project conventions, see root AGENTS.md.
+FastAPI + SQLAlchemy + SQLite service, a uv workspace member.
+For general project conventions, see root AGENTS.md.
 
 ## Layout
 
@@ -88,12 +88,10 @@ can be reset any time by deleting `data/odm.sqlite3`.
 ## Conventions
 
 - Sessions are injected with `Depends(get_session)`; endpoints never
-  open `SessionLocal` themselves (the import thread in
-  `app/services/imports.py` is the deliberate exception — it is not
-  request-scoped).
+  open `SessionLocal` themselves (the import pipeline's background
+  thread is the deliberate exception — it is not request-scoped).
 - Routers stay thin: endpoints, parameter validation, HTTP error
-  mapping. Query and business logic live in services; queue filters and
-  the next-unchecked scan are in `app/services/queues.py`.
+  mapping. Query and business logic live in services, not routers.
 - SQLAlchemy 2.0 `select()` style only.
 - Endpoints return Pydantic models, never bare dicts. A response model
   silently drops undeclared fields, so check field parity against the

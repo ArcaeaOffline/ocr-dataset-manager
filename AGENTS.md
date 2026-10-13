@@ -10,9 +10,9 @@ pre-recognition, human confirmations, SQLite storage.
 
 ```
 backend/          FastAPI + SQLAlchemy + SQLite, uv workspace member.
-                  Read backend/AGENTS.md before changing backend code.
-frontend/         vite + vue3 + UnoCSS SPA (pnpm); interactive components
-                  sit on reka-ui headless primitives
+                  Read `backend/AGENTS.md` before changing backend code.
+frontend/         vite + vue3 + UnoCSS SPA (pnpm).
+                  Read `frontend/AGENTS.md` before changing frontend code.
 data/             gitignored runtime data: db, image store, thumbnails and others
 ```
 
@@ -28,29 +28,14 @@ due to privacy and copyright issues.
 # installs nothing but the root project)
 uv sync --all-packages
 
-# frontend dev server (proxies /api to :8199)
-cd frontend && pnpm dev
-
-# frontend checks
-pnpm build   # vue-tsc + vite
-pnpm lint    # oxlint
-pnpm format  # oxfmt
+# local all-checks: backend lint + types + tests, frontend build + lint
+uv run ruff check backend && uv run basedpyright backend && \
+  (cd backend && uv run pytest -q) && \
+  (cd frontend && pnpm build && pnpm lint)
 ```
 
 ## Conventions
 
-- Interactive components compose reka-ui primitives for behavior and are
-  styled exclusively with UnoCSS semantic tokens; reka state attributes
-  (`data-state`, `data-highlighted`, …) map to styles via UnoCSS arbitrary
-  variants (`data-[state=open]:…`). shadcn-vue is deliberately not used —
-  its component sources target Tailwind.
-- Clicking the active segment of a segmented select clears the value back
-  to unknown.
-- `vue-tsc` does not flag template tags that resolve to no component; grep
-  the template before removing a component import.
-- `@/` aliases `src/` use it for cross-directory imports, keep `./` for
-  same-directory siblings.
-- Frontend uses oxc tools.
 - Commit messages: conventional-commit style (`feat:`, `fix:`, `docs:`,
   `chore:`), subject in English, body states what is here now — not the
   history of how it got that way.

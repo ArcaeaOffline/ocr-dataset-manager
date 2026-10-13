@@ -1,0 +1,45 @@
+# Frontend
+
+vite + vue3 + UnoCSS SPA built with pnpm.
+For general project conventions, see root AGENTS.md.
+
+## Layout
+
+- `components/ui/` holds pure UI primitives. Membership test: generic
+  controls only — no `@/api` imports, no domain vocabulary.
+- `features/<name>/` holds one annotation feature per directory: its
+  domain components plus feature-local `lib/` helpers.
+- `views/` are page shells: router targets that compose features.
+- `composables/` holds shared, feature-agnostic composables.
+- `api.ts` types every backend resource in one file; it is the wire
+  contract mirrored from the backend.
+
+## Commands
+
+```bash
+pnpm dev      # dev server; proxies /api to 127.0.0.1:8199
+pnpm build    # vue-tsc + vite (type check + production build)
+pnpm lint     # oxlint
+pnpm format   # oxfmt
+```
+
+## Conventions
+
+- Interactive components compose reka-ui primitives for behavior and are
+  styled exclusively with UnoCSS semantic tokens; reka state attributes
+  (`data-state`, `data-highlighted`, …) map to styles via UnoCSS
+  arbitrary variants (`data-[state=open]:…`). shadcn-vue is deliberately
+  not used — its component sources target Tailwind.
+- Clicking the active segment of a segmented select clears the value
+  back to unknown.
+- Features never import each other; views compose them. No barrel
+  files (they defeat Vite tree-shaking) — import by file path.
+- `@/` aliases `src/`; use it for cross-directory imports, keep `./`
+  for same-directory siblings.
+- Requests go through the shared `useRequest` composable; deliberately
+  no vue-query or pinia.
+- Opacity utilities (`/50`, `/80`) silently fail on `var()`-based
+  semantic tokens; apply them only to literal colors, or encode the
+  opacity into a dedicated token.
+- `vue-tsc` does not flag template tags that resolve to no component;
+  grep the template before removing a component import.
