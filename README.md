@@ -13,9 +13,9 @@ A local, web-based annotation tool for building OCR training datasets from
 Arcaea play-result screenshots. It pairs with
 [core-ocr](https://github.com/ArcaeaOffline/core-ocr), which provides the
 screenshot layout detection, field/icon recognition primitives, and the
-image hash database (ihdb) used for song and partner identification. Text
-recognition runs locally via RapidOCR (PaddleOCR onnx models), with
-core-ocr's CRNN model as a fallback.
+image hash database (ihdb) builder used for song and partner
+identification. Text recognition runs locally via RapidOCR (PaddleOCR
+onnx models).
 
 The workflow it is built around:
 
@@ -46,8 +46,6 @@ stored in their own tables, separate from the single-image device results.
 
 - Python 3.11+ and [uv](https://docs.astral.sh/uv/)
 - Node.js 20+ and [pnpm](https://pnpm.io/)
-- A checkout of [core-ocr](https://github.com/ArcaeaOffline/core-ocr) as a
-  sibling directory (wired in as a path dependency)
 - Your own data, prepared locally (see below)
 
 ## What you need to provide
@@ -55,9 +53,10 @@ stored in their own tables, separate from the single-image device results.
 This repository distributes no game assets and no game-derived data. To run
 recognition you need, on your own machine:
 
-- **An image hash database (ihdb)** built with core-ocr's
-  `ImageHashesDatabaseBuilder` from song jackets and partner icons you
-  extracted yourself. Set its path via `ODM_IHDB_PATH`.
+- **An image hash database (ihdb)** built with
+  `arcaea_offline_ocr.builders.ihdb.ImageHashesDatabaseBuilder` from song
+  jackets and partner icons you extracted yourself. Place it at
+  `data/ihdb.db` (the default) or set its path via `ODM_IHDB_PATH`.
 - **Partner icons and the song list**, extracted from an Arcaea APK:
 
   ```bash
@@ -87,15 +86,13 @@ build the frontend (`pnpm build`) and serve the static files from FastAPI.
 
 ### Configuration
 
-All paths have defaults that work for a checkout sitting next to a
-`core-ocr` checkout, and can be overridden with environment variables:
+All paths have defaults and can be overridden with environment variables:
 
-| Variable              | Default                                    | Purpose                                   |
-| --------------------- | ------------------------------------------ | ----------------------------------------- |
-| `ODM_DATA_DIR`        | `<repo>/data`                              | Database, image store, thumbnails, assets |
-| `ODM_DATABASE_URL`    | sqlite in the data dir                     | SQLAlchemy URL                            |
-| `ODM_IHDB_PATH`       | `<core-ocr>/__debug/ihdb-7.0.255.db`       | Image hash database                       |
-| `ODM_CRNN_MODEL_PATH` | `<core-ocr>/assets/ocr/model_patched.onnx` | Fallback text model                       |
+| Variable           | Default                | Purpose                                   |
+| ------------------ | ---------------------- | ----------------------------------------- |
+| `ODM_DATA_DIR`     | `<repo>/data`          | Database, image store, thumbnails, assets |
+| `ODM_DATABASE_URL` | sqlite in the data dir | SQLAlchemy URL                            |
+| `ODM_IHDB_PATH`    | `<data>/ihdb.db`       | Image hash database                       |
 
 ## License
 

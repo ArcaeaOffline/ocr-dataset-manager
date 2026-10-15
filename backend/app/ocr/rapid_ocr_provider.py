@@ -1,8 +1,7 @@
 """Text OCR provider backed by RapidOCR (PaddleOCR onnx models).
 
 Implements core-ocr's OcrTextProvider so it can be injected into
-DeviceScenario without touching core-ocr. The bundled CRNN remains a
-fallback option.
+DeviceScenario without touching core-ocr.
 """
 
 from typing import TYPE_CHECKING

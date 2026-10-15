@@ -10,9 +10,6 @@ package = false
 [tool.uv.workspace]
 members = ["backend"]
 
-[tool.uv.sources]
-arcaea-offline-ocr = { path = "../core-ocr" }
-
 [tool.ruff.lint]
 # docs.astral.sh/ruff "popular rules" example set: pycodestyle, pyflakes,
 # isort, pyupgrade, flake8-bugbear, flake8-simplify
