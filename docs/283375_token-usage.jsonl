@@ -3,3 +3,8 @@
 {"date":"2026-09-18","source":"zcode","model":"glm-5.3-flash","requests":221,"input_tokens":44785639,"cache_read_tokens":43754304,"cache_write_tokens":0,"output_tokens":139554,"reasoning_tokens":0}
 {"date":"2026-09-19","source":"zcode","model":"glm-5.3-flash","requests":462,"input_tokens":50155300,"cache_read_tokens":48624128,"cache_write_tokens":0,"output_tokens":238073,"reasoning_tokens":0}
 {"date":"2026-10-02","source":"zcode","model":"glm-5.3-flash","requests":245,"input_tokens":39463534,"cache_read_tokens":38794560,"cache_write_tokens":0,"output_tokens":153359,"reasoning_tokens":0}
+{"date":"2026-10-10","source":"zcode","model":"glm-5.3-flash","requests":160,"input_tokens":10186920,"cache_read_tokens":9825856,"cache_write_tokens":0,"output_tokens":107111,"reasoning_tokens":0}
+{"date":"2026-10-11","source":"zcode","model":"glm-5.3-flash","requests":476,"input_tokens":75999491,"cache_read_tokens":72904896,"cache_write_tokens":0,"output_tokens":324990,"reasoning_tokens":0}
+{"date":"2026-10-12","source":"zcode","model":"glm-5.3-flash","requests":268,"input_tokens":40545362,"cache_read_tokens":39492224,"cache_write_tokens":0,"output_tokens":331489,"reasoning_tokens":0}
+{"date":"2026-10-13","source":"zcode","model":"glm-5.3-flash","requests":209,"input_tokens":31040431,"cache_read_tokens":29268224,"cache_write_tokens":0,"output_tokens":215579,"reasoning_tokens":0}
+{"date":"2026-10-15","source":"zcode","model":"glm-5.3-flash","requests":46,"input_tokens":2087792,"cache_read_tokens":2036096,"cache_write_tokens":0,"output_tokens":33021,"reasoning_tokens":0}
