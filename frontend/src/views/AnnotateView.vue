@@ -8,6 +8,7 @@ import {
   CLEAR_STATUS_NAMES,
   RATING_CLASS_NAMES,
   type DeviceResult,
+  type PartnerEntry,
   type Prefill,
   type ResultFields,
   type SongEntry,
@@ -41,7 +42,7 @@ interface AnnotateData {
   saved: DeviceResult | null;
   filename: string | null;
   songs: SongEntry[];
-  partners: { id: string }[];
+  partners: PartnerEntry[];
 }
 
 const emptyFields = (): ResultFields => ({
@@ -110,7 +111,7 @@ const { data, loading } = useRequest(
       api.getResult(id).catch(() => null),
       api.getImage(id).catch(() => null),
       catalog.songs().catch(() => [] as SongEntry[]),
-      catalog.partners().catch(() => [] as { id: string }[]),
+      catalog.partners().catch(() => [] as PartnerEntry[]),
     ]);
     return {
       prefill: prefillResponse?.kind === "device" ? prefillResponse.prefill : null,

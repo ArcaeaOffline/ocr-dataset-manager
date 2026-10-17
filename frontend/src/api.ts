@@ -141,6 +141,8 @@ export interface SongEntry {
 
 export interface PartnerEntry {
   id: string;
+  /** letter id from the game's characters file; null when the mapping is absent */
+  name: string | null;
 }
 
 const catalogCache: Record<"songs" | "partners", Promise<unknown> | null> = {

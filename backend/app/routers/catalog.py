@@ -1,9 +1,11 @@
 """Song / partner catalogs for annotation helpers.
 
-Song data comes from the game's songlist file and partner icons from the
-extracted asset directory; both live under data/ (not in version
-control). Partner ids are the icon filename stems, which is the same
-labeling the ihdb was built with, so candidates and icons always align.
+Song data comes from the game's songlist file, partner letter ids from
+the game's characters file, and partner icons from the extracted asset
+directory; all live under data/.
+
+Partner ids are the icon filename stems, which is the same labeling the
+ihdb was built with, so candidates and icons always align.
 """
 
 import json
@@ -16,7 +18,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from ..config import PARTNER_ICONS_DIR, SONGLIST_PATH
+from ..config import CHARACTERS_PATH, PARTNER_ICONS_DIR, SONGLIST_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,7 @@ class SongOut(BaseModel):
 
 class PartnerOut(BaseModel):
     id: str
+    name: str | None = None
 
 
 @lru_cache(maxsize=4)
@@ -58,13 +61,33 @@ def list_songs() -> list[SongOut]:
     ]
 
 
+@lru_cache(maxsize=4)
+def _parse_characters(path: Path, _mtime: int) -> dict[str, str]:
+    # _mtime is unused in the body; it is the cache key that triggers a
+    # re-parse when the characters file changes on disk
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        str(entry["character_id"]): entry["name"]
+        for entry in data
+        if "character_id" in entry and "name" in entry
+    }
+
+
+def _partner_names() -> dict[str, str]:
+    if not CHARACTERS_PATH.exists():
+        return {}
+    return _parse_characters(CHARACTERS_PATH, int(CHARACTERS_PATH.stat().st_mtime))
+
+
 @router.get("/partners")
 def list_partners() -> list[PartnerOut]:
+    names = _partner_names()
     ids = sorted(
         (p.stem for p in PARTNER_ICONS_DIR.iterdir() if p.is_file()),
         key=lambda s: (int(s.rstrip("u")), s.endswith("u")),
     )
-    return [PartnerOut(id=i) for i in ids]
+    # uncapped icon variants (e.g. "0u") share the base character's name
+    return [PartnerOut(id=i, name=names.get(i.removesuffix("u"))) for i in ids]
 
 
 @router.get("/partners/{partner_id}/icon")

@@ -9,6 +9,7 @@ IMAGES_DIR = DATA_DIR / "images"
 THUMBS_DIR = DATA_DIR / "thumbs"
 PARTNER_ICONS_DIR = DATA_DIR / "partner_icons"
 SONGLIST_PATH = DATA_DIR / "catalog" / "songlist"
+CHARACTERS_PATH = DATA_DIR / "catalog" / "characters.json"
 DATABASE_PATH = DATA_DIR / "odm.sqlite3"
 DATABASE_URL = os.environ.get(
     "ODM_DATABASE_URL", f"sqlite:///{DATABASE_PATH.as_posix()}"

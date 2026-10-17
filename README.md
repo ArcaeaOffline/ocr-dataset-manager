@@ -57,15 +57,16 @@ recognition you need, on your own machine:
   `arcaea_offline_ocr.builders.ihdb.ImageHashesDatabaseBuilder` from song
   jackets and partner icons you extracted yourself. Place it at
   `data/ihdb.db` (the default) or set its path via `ODM_IHDB_PATH`.
-- **Partner icons and the song list**, extracted from an Arcaea APK:
+- **Partner icons, the song list and the characters file** (the partner
+  letter ids), extracted from an Arcaea APK:
 
   ```bash
   cd backend
   uv run python scripts/extract_assets.py /path/to/arcaea.apk
   ```
 
-This writes `data/partner_icons/` and `data/catalog/songlist` relative to
-the repository root.
+This writes `data/partner_icons/`, `data/catalog/songlist` and
+`data/catalog/characters.json` relative to the repository root.
 
 ## Running
 

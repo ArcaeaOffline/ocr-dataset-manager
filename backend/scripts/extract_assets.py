@@ -1,19 +1,18 @@
-"""Extract partner icons and the songlist from an Arcaea APK into the
-backend data directory."""
+"""Extract partner icons, the songlist and the characters file from an
+Arcaea APK into the backend data directory."""
 
 import re
 import sys
 import zipfile
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-PARTNER_ICONS_DIR = DATA_DIR / "partner_icons"
-SONGLIST_PATH = DATA_DIR / "catalog" / "songlist"
+from app.config import CHARACTERS_PATH, PARTNER_ICONS_DIR, SONGLIST_PATH
 
 # same interest rules as the reference extractor; icon stems double as
 # ihdb labels
 _PARTNER_ICON = re.compile(r"^assets/char/(\d+u?)_icon\.(jpg|png)$")
 _SONGLIST = re.compile(r"^assets/songs/songlist$")
+_CHARACTERS = re.compile(r"^assets/char/characters\.json$")
 
 
 def main() -> int:
@@ -40,6 +39,9 @@ def main() -> int:
             if _SONGLIST.match(name):
                 SONGLIST_PATH.write_bytes(zf.read(name))
                 print(f"songlist -> {SONGLIST_PATH}")
+            elif _CHARACTERS.match(name):
+                CHARACTERS_PATH.write_bytes(zf.read(name))
+                print(f"characters -> {CHARACTERS_PATH}")
 
     print(f"{icons} partner icons -> {PARTNER_ICONS_DIR}")
     return 0

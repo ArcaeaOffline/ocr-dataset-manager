@@ -57,8 +57,43 @@ function onSelect(value: unknown) {
 const filteredPartners = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (q === "") return props.partners;
-  return props.partners.filter((p) => p.id.toLowerCase().includes(q));
+  return props.partners.filter(
+    (p) => p.id.toLowerCase().includes(q) || (p.name ?? "").toLowerCase().includes(q),
+  );
 });
+
+// an empty input proposes nothing; the browse dialog covers the full list
+const catalogMatches = computed(() => {
+  const q = text.value.trim().toLowerCase();
+  if (q === "") return [];
+  return props.partners
+    .filter(
+      (p) => p.id.toLowerCase().includes(q) || (p.name ?? "").toLowerCase().includes(q),
+    )
+    .slice(0, 8);
+});
+
+const selectedPartner = computed(() => {
+  const t = text.value.trim().toLowerCase();
+  if (t === "") return null;
+  return (
+    props.partners.find((p) => p.id.toLowerCase() === t) ??
+    props.partners.find((p) => p.name?.toLowerCase() === t) ??
+    null
+  );
+});
+
+const partnersById = computed(() => new Map(props.partners.map((p) => [p.id, p])));
+
+// letter id first — it is the human-friendly form
+function partnerLabel(p: PartnerEntry) {
+  return p.name ? `${p.name} · ${p.id}` : p.id;
+}
+
+// candidates are icon stems; only the id is known before the catalog loads
+function candidateLabel(imageId: string) {
+  return partnerLabel(partnersById.value.get(imageId) ?? { id: imageId, name: null });
+}
 
 function selectFromPanel(id: string) {
   panelOpen.value = false;
@@ -85,7 +120,15 @@ function selectFromPanel(id: string) {
             title="OCR 预识别"
           />
         </span>
-        <ComboboxInput v-model="text" class="field-input mt-0.5" placeholder="留空 = 未知" />
+        <div class="relative mt-0.5">
+          <ComboboxInput v-model="text" class="field-input pr-8" placeholder="留空 = 未知" />
+          <img
+            v-if="selectedPartner"
+            :src="catalog.partnerIconUrl(selectedPartner.id)"
+            class="pointer-events-none absolute right-1.5 top-1/2 size-6 -translate-y-1/2 rounded object-cover"
+            :alt="selectedPartner.name ?? selectedPartner.id"
+          />
+        </div>
       </label>
       <Button variant="secondary" title="浏览全部搭档" @click="panelOpen = true">
         <i class="i-lucide-layout-grid size-4" />
@@ -93,9 +136,9 @@ function selectFromPanel(id: string) {
       </Button>
     </ComboboxAnchor>
 
-    <!-- candidates are OCR proposals, not catalog entries, so they never
-         filter against the typed text -->
-    <ComboboxPortal v-if="props.candidates.length > 0">
+    <!-- OCR candidates are proposals, not catalog entries, so they never
+         filter against the typed text; the catalog section below does -->
+    <ComboboxPortal v-if="props.candidates.length > 0 || catalogMatches.length > 0">
       <ComboboxContent
         position="popper"
         :side-offset="4"
@@ -112,11 +155,27 @@ function selectFromPanel(id: string) {
             class="h-6 w-6 rounded object-cover"
             :alt="c.image_id"
           />
-          <span class="flex-1 font-mono">{{ c.image_id }}</span>
-          <span class="text-xs text-muted-foreground">
+          <span class="flex-1 truncate font-mono">{{ candidateLabel(c.image_id) }}</span>
+          <span class="shrink-0 text-xs text-muted-foreground">
             {{ (c.confidence * 100).toFixed(1) }}%
           </span>
         </ComboboxItem>
+        <template v-if="catalogMatches.length > 0">
+          <div v-if="props.candidates.length > 0" class="border-t border-border" />
+          <ComboboxItem
+            v-for="p in catalogMatches"
+            :key="`partner-${p.id}`"
+            :value="p.id"
+            class="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-secondary"
+          >
+            <img
+              :src="catalog.partnerIconUrl(p.id)"
+              class="h-6 w-6 rounded object-cover"
+              :alt="p.id"
+            />
+            <span class="flex-1 truncate font-mono">{{ partnerLabel(p) }}</span>
+          </ComboboxItem>
+        </template>
       </ComboboxContent>
     </ComboboxPortal>
   </ComboboxRoot>
@@ -146,7 +205,8 @@ function selectFromPanel(id: string) {
                 loading="lazy"
               />
               <div class="mt-0.5 text-center font-mono text-xs text-muted-foreground">
-                {{ p.id }}
+                <div v-if="p.name" class="truncate" :title="p.name">{{ p.name }}</div>
+                <div>{{ p.id }}</div>
               </div>
             </button>
           </div>
