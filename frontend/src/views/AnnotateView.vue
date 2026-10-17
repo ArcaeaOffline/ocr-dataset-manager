@@ -361,6 +361,14 @@ onUnmounted(() => {
           :options="roisTypeOptions"
           :prefilled="prefilled.has('rois_type')"
         />
+
+        <PartnerPicker
+          v-model="form.partner_id"
+          :candidates="partnerCandidates"
+          :partners="partners"
+          :prefilled="prefilled.has('partner_id')"
+        />
+
         <SegmentedSelect
           v-model="form.rating_class"
           label="rating_class"
@@ -368,6 +376,20 @@ onUnmounted(() => {
           :hint="ratingHint"
           :prefilled="prefilled.has('rating_class')"
         />
+
+        <NumberField
+          v-model="form.max_recall"
+          label="max_recall"
+          :prefilled="prefilled.has('max_recall')"
+        />
+
+        <SongPicker
+          v-model="form.song_id"
+          :candidates="songCandidates"
+          :songs="songs"
+          :prefilled="prefilled.has('song_id')"
+        />
+
         <SegmentedSelect
           v-model="form.clear_status"
           label="clear_status"
@@ -376,36 +398,9 @@ onUnmounted(() => {
           :prefilled="prefilled.has('clear_status')"
         />
 
-        <div class="grid grid-cols-1 gap-2">
-          <SongPicker
-            v-model="form.song_id"
-            :candidates="songCandidates"
-            :songs="songs"
-            :prefilled="prefilled.has('song_id')"
-          />
-          <PartnerPicker
-            v-model="form.partner_id"
-            :candidates="partnerCandidates"
-            :partners="partners"
-            :prefilled="prefilled.has('partner_id')"
-          />
-        </div>
+        <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')" />
 
-        <div class="grid grid-cols-3 gap-2">
-          <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')" />
-          <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')" />
-          <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')" />
-          <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')" />
-          <NumberField
-            v-model="form.max_recall"
-            label="max_recall"
-            :prefilled="prefilled.has('max_recall')"
-          />
-          <NumberField
-            v-model="form.pure_shiny"
-            label="pure_shiny"
-            :prefilled="prefilled.has('pure_shiny')"
-          />
+        <div class="grid grid-cols-2 gap-2">
           <NumberField
             v-model="form.high_score"
             label="high_score"
@@ -416,6 +411,20 @@ onUnmounted(() => {
             label="high_score_delta"
             :prefilled="prefilled.has('high_score_delta')"
           />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')" />
+          <NumberField
+            v-model="form.pure_shiny"
+            label="pure_shiny"
+            :prefilled="prefilled.has('pure_shiny')"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')" />
+          <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')" />
         </div>
 
         <div class="grid grid-cols-4 gap-2">
