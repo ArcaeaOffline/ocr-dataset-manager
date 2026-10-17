@@ -38,13 +38,18 @@ CAP = 100
 
 PrefillValue = int | str | None | list[int] | list[dict[str, str | float]]
 PrefillResult: TypeAlias = dict[str, PrefillValue]
-# T2 renders "L4(P36) E0(P16)": far_late (pure_late) far_early (pure_early);
-# T1 only shows "L1 E5". Parens are optional because rec mangles them
-_EARLY_LATE_T2 = re.compile(
-    r"L\s*(\d+)\s*\(?\s*P?\s*(\d+)?\s*\)?\s*E\s*(\d+)\s*\(?\s*P?\s*(\d+)?\s*\)?",
+# The early/late line renders "L<far_late> E<far_early>", extended with
+# "(P<pure_late>)" and "(P<pure_early>)" when PURE early/late display is
+# on; both forms occur on either layout. Parens are optional because rec
+# mangles them; the P marker is what separates the two forms, so it is
+# matched strictly
+_EARLY_LATE_WITH_PURE = re.compile(
+    r"L\s*(\d+)\s*\(?\s*P\s*(\d+)\s*\)?\s*E\s*(\d+)\s*\(?\s*P\s*(\d+)\s*\)?",
     re.IGNORECASE,
 )
-_EARLY_LATE_T1 = re.compile(r"L\s*(\d+)\s*[-]?\s*E\s*(\d+)", re.IGNORECASE)
+# far-only form, also the fallback when the P marker is lost; the loose
+# middle keeps far values parseable under OCR noise
+_EARLY_LATE_PLAIN = re.compile(r"L\s*(\d+).*E\s*(\d+)", re.IGNORECASE)
 
 _cache: OrderedDict[str, PrefillResult] = OrderedDict()
 _cache_lock = threading.Lock()
@@ -75,22 +80,20 @@ def _get_raw_text_provider() -> RapidOcrTextProvider:
         return _raw_text_provider
 
 
-def _parse_early_late(text: str | None, rois_type: int) -> dict[str, int | None] | None:
+def _parse_early_late(text: str | None) -> dict[str, int | None] | None:
     if not text:
         return None
     # rec renders the zero in "L0(P22)" as letter O more often than not
     normalized = text.replace("O", "0").replace("o", "0")
-    if rois_type == 1:
-        match = _EARLY_LATE_T2.search(normalized)
-        if match is None:
-            return None
+    match = _EARLY_LATE_WITH_PURE.search(normalized)
+    if match is not None:
         return {
             "far_late": int(match.group(1)),
-            "pure_late": int(match.group(2)) if match.group(2) else None,
+            "pure_late": int(match.group(2)),
             "far_early": int(match.group(3)),
-            "pure_early": int(match.group(4)) if match.group(4) else None,
+            "pure_early": int(match.group(4)),
         }
-    match = _EARLY_LATE_T1.search(normalized)
+    match = _EARLY_LATE_PLAIN.search(normalized)
     if match is None:
         return None
     return {"far_late": int(match.group(1)), "far_early": int(match.group(2))}
@@ -197,8 +200,7 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
         }
 
         early_late = _parse_early_late(
-            raw_provider.result_rec_only(crop_xywh(cropped, rois.early_late.rounded())),
-            rois_type,
+            raw_provider.result_rec_only(crop_xywh(cropped, rois.early_late.rounded()))
         )
         if early_late is not None:
             prefill.update(early_late)

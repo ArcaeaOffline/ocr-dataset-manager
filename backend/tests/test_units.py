@@ -61,8 +61,8 @@ def test_save_thumbnail_scales_to_height_256() -> None:
     assert thumb.shape[1] == max(1, round(32 * 256 / 48))
 
 
-def test_parse_early_late_t2_with_pure_components() -> None:
-    parsed = _parse_early_late("L4(P36) E0(P16)", 1)
+def test_parse_early_late_with_pure_parts() -> None:
+    parsed = _parse_early_late("L4(P36) E0(P16)")
     assert parsed == {
         "far_late": 4,
         "pure_late": 36,
@@ -71,12 +71,25 @@ def test_parse_early_late_t2_with_pure_components() -> None:
     }
 
 
-def test_parse_early_late_t1_has_no_pure_parts() -> None:
-    assert _parse_early_late("L1 E5", 0) == {"far_late": 1, "far_early": 5}
+def test_parse_early_late_with_pure_parts_without_parens() -> None:
+    assert _parse_early_late("L4 P36 E0 P16") == {
+        "far_late": 4,
+        "pure_late": 36,
+        "far_early": 0,
+        "pure_early": 16,
+    }
+
+
+def test_parse_early_late_plain_form() -> None:
+    assert _parse_early_late("L1 E5") == {"far_late": 1, "far_early": 5}
+
+
+def test_parse_early_late_lost_pure_marker_keeps_far_values() -> None:
+    assert _parse_early_late("L4 36 E0 16") == {"far_late": 4, "far_early": 0}
 
 
 def test_parse_early_late_normalizes_letter_o() -> None:
-    parsed = _parse_early_late("LO(P22) E3(P1)", 1)
+    parsed = _parse_early_late("LO(P22) E3(P1)")
     assert parsed == {
         "far_late": 0,
         "pure_late": 22,
@@ -86,9 +99,9 @@ def test_parse_early_late_normalizes_letter_o() -> None:
 
 
 def test_parse_early_late_no_match_returns_none() -> None:
-    assert _parse_early_late(None, 1) is None
-    assert _parse_early_late("", 1) is None
-    assert _parse_early_late("no digits here", 1) is None
+    assert _parse_early_late(None) is None
+    assert _parse_early_late("") is None
+    assert _parse_early_late("no digits here") is None
 
 
 def test_new_image_id_unique_32_hex() -> None:

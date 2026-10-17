@@ -4,8 +4,8 @@ HIGH SCORE row, the PURE shiny count, and the early/late line.
 Rects are derived from det-box measurements on 1080p samples of both
 layouts and expressed with the same anchors core-ocr uses (w_mid and
 layout_area_h_mid, scaled by the layout factor), so they follow the
-rendered UI across resolutions. T1 does not display pure early/late;
-its early/late line only carries far values."""
+rendered UI across resolutions. The early/late line carries pure
+early/late too when that display option is on, on either layout."""
 
 from arcaea_offline_ocr.scenarios.device.rois.auto import (
     DeviceRoisAutoT1,
@@ -47,7 +47,7 @@ class CustomRoisT1(DeviceRoisAutoT1):
         return XYWHRect(
             self.w_mid + 74 * self.factor,
             self.layout_area_h_mid + 146 * self.factor,
-            70 * self.factor,
+            275 * self.factor,
             32 * self.factor,
         )
 
