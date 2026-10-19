@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "arcaea-offline-ocr>=0.1.0b2",
     "fastapi>=0.115",
+    "pydantic>=2",
     "uvicorn>=0.30",
     "sqlalchemy>=2",
     "alembic>=1.13",
@@ -20,11 +21,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
+[project.scripts]
+odm = "app.cli:main"
+
 [dependency-groups]
 dev = [
     "basedpyright>=1.40.1",
     "httpx2>=2,<3",
     "pytest>=8",
+    "pyinstaller>=6.10",
     "ruff>=0.16.8",
 ]
 

@@ -24,6 +24,9 @@ uv run basedpyright backend      # type check (config in root pyproject.toml)
 # backend dev server
 cd backend && uv run uvicorn app.main:app --port 8199
 
+# single-process mode (serves the built frontend; --no-open: headless)
+uv run odm --no-open
+
 # tests (from backend/)
 uv run pytest            # API and characterization tests
 uv run pytest -m slow    # real-OCR smoke on the committed fixtures

@@ -1,10 +1,21 @@
+import mimetypes
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 
+from .config import settings
 from .db import init_db
 from .routers import catalog, images, imports
+
+# Windows seeds mimetypes from the registry, where .js can map to
+# text/plain; browsers refuse ES module scripts with a non-JS MIME.
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/javascript", ".mjs")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("image/svg+xml", ".svg")
 
 
 @asynccontextmanager
@@ -22,3 +33,24 @@ app.include_router(catalog.router)
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def register_spa(app: FastAPI, dist: Path) -> None:
+    """Serve the built frontend from `dist`; non-API paths that match no
+    file fall back to index.html (vue-router history mode). Call only
+    after every API route is registered: the catch-all swallows
+    whatever is registered later."""
+    index = dist / "index.html"
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa_fallback(path: str) -> FileResponse:
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404)
+        candidate = (dist / path).resolve()
+        if path and candidate.is_file() and candidate.is_relative_to(dist.resolve()):
+            return FileResponse(candidate)
+        return FileResponse(index)
+
+
+if settings.web_dist_dir is not None:
+    register_spa(app, settings.web_dist_dir)

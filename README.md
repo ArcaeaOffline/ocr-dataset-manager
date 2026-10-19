@@ -70,6 +70,10 @@ This writes `data/partner_icons/`, `data/catalog/songlist` and
 
 ## Running
 
+### Development
+
+The dev server proxies `/api` to the backend.
+
 ```bash
 # backend
 uv sync --all-packages
@@ -82,18 +86,69 @@ pnpm install
 pnpm dev
 ```
 
-The dev server proxies `/api` to the backend. For daily use you can also
-build the frontend (`pnpm build`) and serve the static files from FastAPI.
+### Production
+
+The backend serves the built frontend and opens the browser itself.
+
+```bash
+uv sync --all-packages
+(cd frontend && pnpm install && pnpm build)
+uv run odm  # or python -m app
+```
+
+Run `uv run odm --help` for available configuration options.
 
 ### Configuration
 
-All paths have defaults and can be overridden with environment variables:
+Highest to lowest priority:
+- CLI flags
+- `ODM_*` environment variables
+- `odm.toml` in the anchor directory
+- built-in defaults
+
+Paths in the *config file* resolve relative to the **config file's directory**.
+Paths in the *environment* or on the *CLI* resolve relative to the **current working directory**.
+
+```toml
+data_dir = "data"
+host = "127.0.0.1"
+port = 8199
+open_browser = true
+# database_url = "sqlite:///..."
+# ihdb_path = "ihdb.db"
+```
 
 | Variable           | Default                | Purpose                                   |
 | ------------------ | ---------------------- | ----------------------------------------- |
-| `ODM_DATA_DIR`     | `<repo>/data`          | Database, image store, thumbnails, assets |
+| `ODM_CONFIG`       | `<anchor>/odm.toml`    | Config file location                      |
+| `ODM_DATA_DIR`     | `<anchor>/data`        | Database, image store, thumbnails, assets |
 | `ODM_DATABASE_URL` | sqlite in the data dir | SQLAlchemy URL                            |
 | `ODM_IHDB_PATH`    | `<data>/ihdb.db`       | Image hash database                       |
+| `ODM_HOST`         | `127.0.0.1`            | Bind address                              |
+| `ODM_PORT`         | `8199`                 | Port                                      |
+| `ODM_OPEN_BROWSER` | `true`                 | Open a browser tab on startup             |
+
+The anchor directory is the repository root in development, and the
+directory of the executable in the packaged bundle.
+
+A non-writable data directory will raise a startup error.
+
+## Packaging (Windows)
+
+`backend/scripts/package_windows.py` builds the frontend, then packs
+the backend with PyInstaller into a portable bundle — a folder around
+`odm.exe` that runs from anywhere:
+
+```bash
+# from the repository root
+uv run backend/scripts/package_windows.py
+```
+
+The output is `build/dist/odm/`. Double-clicking `odm.exe` starts the
+server, opens the browser, and creates `data/` next to the executable
+on first start; the ihdb and extracted assets belong in that `data/`
+directory ([What you need to provide](#what-you-need-to-provide)).
+The console window is the server: closing it stops it.
 
 ## License
 
