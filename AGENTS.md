@@ -28,11 +28,20 @@ due to privacy and copyright issues.
 # installs nothing but the root project)
 uv sync --all-packages
 
-# local all-checks: backend lint + types + tests, frontend build + lint
-uv run ruff check backend && uv run basedpyright backend && \
+# local all-checks: backend format + lint + types + tests,
+# frontend build + lint + format
+uv run ruff format --check backend && uv run ruff check backend && \
+  uv run basedpyright backend && \
   (cd backend && uv run pytest -q) && \
-  (cd frontend && pnpm build && pnpm lint)
+  (cd frontend && pnpm build && pnpm lint && pnpm format:check)
 ```
+
+## Mandatory checks
+
+After any code change, agents MUST run the all-checks command above
+and fix every failure before committing or reporting the work done.
+If a check cannot run in the current environment, say so explicitly
+instead of skipping it silently.
 
 ## Conventions
 

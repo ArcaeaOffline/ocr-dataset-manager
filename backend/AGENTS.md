@@ -18,8 +18,9 @@ tests/          API/characterization tests, real-OCR smoke fixtures
 
 ```bash
 # from the workspace root
-uv run ruff check backend        # lint (autofix: append --fix)
-uv run basedpyright backend      # type check (config in root pyproject.toml)
+uv run ruff format --check backend  # format check (write: drop --check)
+uv run ruff check backend           # lint (autofix: append --fix)
+uv run basedpyright backend         # type check (config in root pyproject.toml)
 
 # backend dev server
 cd backend && uv run uvicorn app.main:app --port 8199
