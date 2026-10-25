@@ -218,6 +218,12 @@ def test_list_rejects_unknown_kind(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_list_rejects_non_positive_pagination(client: TestClient) -> None:
+    # SQLite would read limit<=0 as unbounded and offset<0 as 0
+    for params in ({"limit": 0}, {"limit": -1}, {"offset": -1}):
+        assert client.get("/api/images", params=params).status_code == 422
+
+
 def test_image_detail_derives_kind_and_checked(
     client: TestClient, seed: SimpleNamespace
 ) -> None:

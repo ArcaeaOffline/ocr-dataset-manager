@@ -1,8 +1,8 @@
 import dataclasses
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, func, select
@@ -185,8 +185,10 @@ class B30ComponentPrefillOut(BaseModel):
 
 @router.get("")
 def list_images(
-    offset: int = 0,
-    limit: int = 50,
+    # SQLite reads a negative LIMIT as unbounded and a negative OFFSET
+    # as 0, so the lower bounds are enforced here rather than clamped
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1)] = 50,
     unchecked_only: bool = False,
     kind: str | None = None,
     hidden: str | None = None,
