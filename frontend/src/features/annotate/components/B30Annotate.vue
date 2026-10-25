@@ -27,6 +27,7 @@ import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
 import { useRequest } from "@/composables/useRequest";
 import { mergeFields } from "@/features/annotate/lib/mergeFields";
 import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
+import { useGuardedAction } from "@/features/annotate/lib/useGuardedAction";
 import { voteHint } from "@/features/annotate/lib/warnings";
 
 const route = useRoute();
@@ -96,8 +97,8 @@ const componentCount = computed(() => {
 });
 
 const filename = ref<string | null>(null);
-// kind === "device" means a device_results row exists; confirming a
-// layout on such an image would stack a b30 classification on top of it
+// kind === "device" means a device_results row exists; any b30 save on
+// such an image replaces the device annotation (one kind per image)
 const hasDeviceRow = ref(false);
 const songs = ref<SongEntry[]>([]);
 const songsLoading = ref(true);
@@ -223,13 +224,13 @@ async function onLayoutChange(value: string | null) {
 const pendingLayout = ref<string | null>(null);
 const switchingLayout = ref(false);
 
-// card loss and stacking a b30 classification onto device annotation
-// data are the two things the confirmation guards
+// card loss and replacing a device annotation are the two things the
+// confirmation guards
 const layoutWarning = computed(() => {
   if (pendingLayout.value == null) return "";
   const parts: string[] = [];
   if (hasDeviceRow.value) {
-    parts.push("该图已有 device 标注，确认后将同时归类为 B30/50。");
+    parts.push("该图已有 device 标注，确认后将删除 device 标注并按 B30/50 处理。");
   }
   if (savedComponents.value.length > 0) {
     parts.push(
@@ -281,6 +282,15 @@ function nextCard() {
   }
 }
 
+// saving a card on a device-annotated image deletes its device row (one
+// kind per image); the first such save needs a confirmation
+const {
+  pending: crossKindPending,
+  run: runCrossKindGuarded,
+  confirm: confirmCrossKind,
+  cancel: cancelCrossKind,
+} = useGuardedAction(() => hasDeviceRow.value, imageId);
+
 async function save(checked: boolean): Promise<boolean> {
   form.checked = checked;
   const layoutId = layout.value;
@@ -310,10 +320,19 @@ async function save(checked: boolean): Promise<boolean> {
   }
 }
 
-async function saveChecked() {
+function saveChecked() {
   // the form holds the previous image's values until the load lands
   if (loading.value) return;
-  await withBusy("saveChecked", async () => {
+  runCrossKindGuarded(() => void doSaveChecked());
+}
+
+function saveDraft() {
+  if (loading.value) return;
+  runCrossKindGuarded(() => void doSaveDraft());
+}
+
+function doSaveChecked(): Promise<void> {
+  return withBusy("saveChecked", async () => {
     if (!(await save(true))) return;
     if (currentIndex.value >= componentCount.value - 1) {
       await goNext();
@@ -323,9 +342,8 @@ async function saveChecked() {
   });
 }
 
-async function saveDraft() {
-  if (loading.value) return;
-  await withBusy("saveDraft", async () => {
+function doSaveDraft(): Promise<void> {
+  return withBusy("saveDraft", async () => {
     await save(false);
   });
 }
@@ -341,7 +359,7 @@ const ratingHint = computed(() =>
 
 function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === "Enter") {
-    void saveChecked();
+    saveChecked();
     return;
   }
   const target = event.target;
@@ -561,6 +579,20 @@ onUnmounted(() => {
         }
       "
       @confirm="confirmPendingLayout"
+    />
+
+    <ConfirmDialog
+      :open="crossKindPending"
+      title="保存 B30 卡"
+      description="该图已有 device 标注。保存 B30 卡将删除 device 标注，此图改按 B30/50 处理。"
+      confirm-label="保存并删除 device 标注"
+      destructive
+      @update:open="
+        (open: boolean) => {
+          if (!open) cancelCrossKind();
+        }
+      "
+      @confirm="confirmCrossKind"
     />
 
     <ImageViewer

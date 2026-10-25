@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import DeviceResult
+from app.models import B30Component, B30Result, DeviceResult
 from app.ocr.b30 import LAYOUTS
 from app.routers.images import DeviceResultIn
 
@@ -99,26 +99,34 @@ def test_device_confirm_drops_layout_only_b30_row(
     assert detail["checked"] is True
 
 
-def test_device_confirm_keeps_b30_row_with_saved_cards(
+def test_device_confirm_replaces_b30_annotation_with_saved_cards(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
+    """One kind of annotation per image: any device save drops the B30
+    rows (card data included) rather than leaving a hybrid."""
     image = seed.image()
     seed.b30_result(image, layout=LAYOUT_ID)
-    seed.b30_component(image, 0)
+    seed.b30_component(image, 0, checked=True)
 
-    client.put(f"/api/images/{image.id}/result", json=_fields())
+    response = client.put(f"/api/images/{image.id}/result", json=_fields())
+    assert response.status_code == 200
 
-    # saved cards (even unchecked drafts) are annotation work, not
-    # leftovers
-    assert client.get(f"/api/images/{image.id}/b30_result").json() is not None
+    with SessionLocal() as session:
+        assert session.get(B30Result, image.id) is None
+        components = session.scalars(
+            select(B30Component).where(B30Component.image_id == image.id)
+        ).all()
+        assert components == []
 
 
-def test_device_draft_save_keeps_b30_row(
+def test_device_draft_save_replaces_b30_annotation(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
+    """A draft row flips the image's kind just like a confirmed one, so
+    it replaces the B30 annotation too."""
     image = seed.image()
     seed.b30_result(image, layout=LAYOUT_ID)
 
     client.put(f"/api/images/{image.id}/result", json=_fields(checked=False))
 
-    assert client.get(f"/api/images/{image.id}/b30_result").json() is not None
+    assert client.get(f"/api/images/{image.id}/b30_result").json() is None

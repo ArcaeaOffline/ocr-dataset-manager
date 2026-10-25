@@ -16,6 +16,7 @@ import {
 import B30Annotate from "@/features/annotate/components/B30Annotate.vue";
 import Button from "@/components/ui/Button.vue";
 import CheckedToggle from "@/components/ui/CheckedToggle.vue";
+import ConfirmDialog from "@/components/ui/ConfirmDialog.vue";
 import FlowSelector from "@/features/annotate/components/FlowSelector.vue";
 import ImageViewer from "@/features/annotate/components/ImageViewer.vue";
 import LoadingMask from "@/components/ui/LoadingMask.vue";
@@ -26,6 +27,7 @@ import SongPicker from "@/features/annotate/components/SongPicker.vue";
 import { computeWarnings, voteHint } from "@/features/annotate/lib/warnings";
 import { mergeFields } from "@/features/annotate/lib/mergeFields";
 import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
+import { useGuardedAction } from "@/features/annotate/lib/useGuardedAction";
 import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
 import { useRequest } from "@/composables/useRequest";
 
@@ -42,6 +44,8 @@ interface AnnotateData {
   filename: string | null;
   songs: SongEntry[];
   partners: PartnerEntry[];
+  imageKind: string | null;
+  b30CheckedCount: number | null;
 }
 
 const emptyFields = (): ResultFields => ({
@@ -99,6 +103,8 @@ const { data, loading } = useRequest(
       filename: image?.original_filename ?? null,
       songs,
       partners,
+      imageKind: image?.kind ?? null,
+      b30CheckedCount: image?.b30_checked_count ?? null,
     };
   },
   {
@@ -109,6 +115,8 @@ const { data, loading } = useRequest(
       filename: null,
       songs: [],
       partners: [],
+      imageKind: null,
+      b30CheckedCount: null,
     },
   },
 );
@@ -116,6 +124,21 @@ const { data, loading } = useRequest(
 const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
   "saveChecked" | "saveAndNext"
 >(imageId, "device", () => loading.value);
+
+// saving a device annotation on a B30-classified image deletes its B30
+// rows (one kind per image); the first such save needs a confirmation
+const {
+  pending: crossKindPending,
+  run: runCrossKindGuarded,
+  confirm: confirmCrossKind,
+  cancel: cancelCrossKind,
+} = useGuardedAction(() => data.value.imageKind === "b30", imageId);
+
+const crossKindWarning = computed(() => {
+  const checked = data.value.b30CheckedCount ?? 0;
+  const cards = checked > 0 ? `（已确认 ${checked} 张卡）` : "";
+  return `该图已按 B30/50 标注${cards}。保存 device 标注将删除其全部 B30 数据，此图改按 device 结果处理。`;
+});
 
 // the flow switch is ephemeral UI state seeded by the probe (never
 // persisted; queue kind derives from saved rows)
@@ -240,18 +263,26 @@ async function save(): Promise<boolean> {
   }
 }
 
-async function saveAndNext() {
+function saveAndNext() {
   // the form holds the previous image's values until the load lands
   if (loading.value) return;
-  await withBusy("saveAndNext", async () => {
+  runCrossKindGuarded(() => void doSaveAndNext());
+}
+
+function saveChecked() {
+  if (loading.value) return;
+  runCrossKindGuarded(() => void doSaveChecked());
+}
+
+function doSaveAndNext(): Promise<void> {
+  return withBusy("saveAndNext", async () => {
     if (await save()) await goNext();
   });
 }
 
-async function saveChecked() {
-  if (loading.value) return;
+function doSaveChecked(): Promise<void> {
   form.checked = true;
-  await withBusy("saveChecked", async () => {
+  return withBusy("saveChecked", async () => {
     if (await save()) await goNext();
   });
 }
@@ -260,7 +291,7 @@ const warnings = computed(() => computeWarnings(form));
 
 function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === "Enter") {
-    void saveAndNext();
+    saveAndNext();
   }
   if (event.key === "Escape") {
     viewerOpen.value = false;
@@ -478,6 +509,20 @@ onUnmounted(() => {
       :label="filename ?? imageId"
       :alt="filename ?? imageId"
       @close="viewerOpen = false"
+    />
+
+    <ConfirmDialog
+      :open="crossKindPending"
+      title="保存 device 标注"
+      :description="crossKindWarning"
+      confirm-label="保存并删除 B30 数据"
+      destructive
+      @update:open="
+        (open: boolean) => {
+          if (!open) cancelCrossKind();
+        }
+      "
+      @confirm="confirmCrossKind"
     />
   </div>
 </template>

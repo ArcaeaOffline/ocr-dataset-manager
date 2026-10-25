@@ -66,9 +66,12 @@ can be reset any time by deleting `data/odm.sqlite3`.
 - **device vs b30**: `device_results` is strictly 1:1 with an image.
   B30/B50 screenshots get their own `b30_results` (1:1, carries the
   confirmed bot layout) and `b30_components` (one row per card) tables —
-  do not add per-component concepts to the device table. A B30 image
-  counts as fully reviewed when every component its layout expects has a
-  checked row; there is no image-level checked flag.
+  do not add per-component concepts to the device table. One image,
+  one kind: `services/results.py` drops the other kind's rows in the
+  same transaction on every save, and the annotate UI confirms before
+  the first cross-kind save. A B30 image counts as fully reviewed when
+  every component its layout expects has a checked row; there is no
+  image-level checked flag.
 - **B30/B50 layouts** live in `app/ocr/b30/`: each `B30Layout`
   describes a bot's canonical canvas, card grid, and per-card ROIs, all
   factor-scaled by `width / canvas_width`. `layout_probe.py` classifies

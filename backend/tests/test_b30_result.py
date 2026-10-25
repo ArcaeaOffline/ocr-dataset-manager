@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import B30Component, B30Result
+from app.models import B30Component, B30Result, DeviceResult
 from app.ocr.b30 import LAYOUTS
 
 LAYOUT_ID = next(iter(LAYOUTS))
@@ -132,6 +132,26 @@ def test_put_b30_result_layout_switch_clears_components(
             select(B30Component).where(B30Component.image_id == image.id)
         ).all()
         assert len(rows) == 1
+
+
+def test_put_b30_result_replaces_device_annotation(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    """One kind of annotation per image: a B30 save drops a device row
+    (confirmed or draft) rather than leaving a hybrid."""
+    image = seed.image()
+    seed.device_result(image, checked=True, song_id="song_x")
+
+    response = client.put(
+        f"/api/images/{image.id}/b30_result",
+        json={"layout": LAYOUT_ID, "components": [_component(0)]},
+    )
+    assert response.status_code == 200
+
+    with SessionLocal() as session:
+        assert session.get(DeviceResult, image.id) is None
+    detail = client.get(f"/api/images/{image.id}").json()
+    assert detail["kind"] == "b30"
 
 
 def test_put_b30_result_same_layout_keeps_components(

@@ -5,14 +5,14 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, delete, func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
 from .. import storage
 from ..db import get_session
 from ..models import B30Component, B30Result, DeviceResult, Image, OriginalFilename
 from ..ocr.b30 import LAYOUTS
-from ..services import prefill, queues
+from ..services import prefill, queues, results
 
 router = APIRouter(prefix="/api/images", tags=["images"])
 
@@ -456,36 +456,9 @@ def save_b30_result(
     _require_image(session, image_id)
     if body.layout is not None and body.layout not in LAYOUTS:
         raise HTTPException(status_code=422, detail=f"unknown layout: {body.layout}")
-    result = session.get(B30Result, image_id)
-    if result is None:
-        result = B30Result(image_id=image_id)
-    elif (
-        body.layout is not None
-        and result.layout is not None
-        and result.layout != body.layout
-    ):
-        # stale rows of the old layout would count toward the new
-        # one's completion
-        session.execute(delete(B30Component).where(B30Component.image_id == image_id))
-    result.layout = body.layout
-    session.add(result)
-    for component in body.components:
-        row = session.get(B30Component, (image_id, component.index))
-        if row is None:
-            row = B30Component(image_id=image_id, component_index=component.index)
-        for field in (
-            "song_id",
-            "rating_class",
-            "score",
-            "pure",
-            "far",
-            "lost",
-            "pure_shiny",
-            "clear_status",
-            "checked",
-        ):
-            setattr(row, field, getattr(component, field))
-        session.add(row)
+    results.save_b30_result(
+        session, image_id, body.layout, [c.model_dump() for c in body.components]
+    )
     session.commit()
     saved = _b30_result_out(session, image_id)
     assert saved is not None  # the row was just upserted
@@ -501,9 +474,13 @@ def get_result(
     result = session.get(DeviceResult, image_id)
     if result is None:
         return None
+    return _device_result_out(result)
+
+
+def _device_result_out(result: DeviceResult) -> DeviceResultOut:
     return DeviceResultOut(
         **{c: getattr(result, c) for c in DeviceResultIn.model_fields},
-        image_id=image_id,
+        image_id=result.image_id,
         updated_at=result.updated_at.replace(tzinfo=UTC),
     )
 
@@ -513,27 +490,9 @@ def save_result(
     image_id: str, body: DeviceResultIn, session: Session = Depends(get_session)
 ) -> DeviceResultOut:
     _require_image(session, image_id)
-    result = session.get(DeviceResult, image_id)
-    if result is None:
-        result = DeviceResult(image_id=image_id)
-    for field in DeviceResultIn.model_fields:
-        setattr(result, field, getattr(body, field))
-    session.add(result)
-    if body.checked:
-        # a layout-only b30 row carries no annotation work; device wins
-        # the kind derivation (queues.kind_of), so confirming the device
-        # annotation drops it rather than leaving a hybrid
-        component_count = session.scalar(
-            select(func.count()).where(B30Component.image_id == image_id)
-        )
-        if component_count == 0:
-            session.execute(delete(B30Result).where(B30Result.image_id == image_id))
+    result = results.save_device_result(session, image_id, body.model_dump())
     session.commit()
-    return DeviceResultOut(
-        **{c: getattr(result, c) for c in DeviceResultIn.model_fields},
-        image_id=image_id,
-        updated_at=result.updated_at.replace(tzinfo=UTC),
-    )
+    return _device_result_out(result)
 
 
 @router.get("/{image_id}/thumb")
