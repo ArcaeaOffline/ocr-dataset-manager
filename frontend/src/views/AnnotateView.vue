@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { toast } from "vue-sonner";
 import {
   api,
@@ -24,17 +24,16 @@ import PartnerPicker from "@/features/annotate/components/PartnerPicker.vue";
 import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
 import SongPicker from "@/features/annotate/components/SongPicker.vue";
 import { computeWarnings, voteHint } from "@/features/annotate/lib/warnings";
+import { mergeFields } from "@/features/annotate/lib/mergeFields";
+import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
 import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
-import { useBusy } from "@/composables/useBusy";
 import { useRequest } from "@/composables/useRequest";
 
 const route = useRoute();
-const router = useRouter();
 
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
 const viewerOpen = ref(false);
-const { busyAction, withBusy } = useBusy<"saveChecked" | "saveAndNext" | "skip" | "hide">();
 
 interface AnnotateData {
   prefill: Prefill | null;
@@ -80,26 +79,6 @@ const clearStatusOptions = CLEAR_STATUS_NAMES.slice(0, 4).map((label, i) => ({
   label,
 }));
 
-function applyPrefill(prefill: Prefill) {
-  form.rois_type = prefill.rois_type;
-  form.song_id = prefill.song_id ?? null;
-  form.partner_id = prefill.partner_id ?? null;
-  form.rating_class = prefill.rating_class ?? null;
-  form.clear_status = prefill.clear_status ?? null;
-  form.score = prefill.score ?? null;
-  form.pure = prefill.pure ?? null;
-  form.far = prefill.far ?? null;
-  form.lost = prefill.lost ?? null;
-  form.max_recall = prefill.max_recall ?? null;
-  form.high_score = prefill.high_score ?? null;
-  form.high_score_delta = prefill.high_score_delta ?? null;
-  form.pure_shiny = prefill.pure_shiny ?? null;
-  form.pure_early = prefill.pure_early ?? null;
-  form.pure_late = prefill.pure_late ?? null;
-  form.far_early = prefill.far_early ?? null;
-  form.far_late = prefill.far_late ?? null;
-}
-
 const { data, loading } = useRequest(
   imageId,
   async (id): Promise<AnnotateData> => {
@@ -133,6 +112,10 @@ const { data, loading } = useRequest(
     },
   },
 );
+
+const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
+  "saveChecked" | "saveAndNext"
+>(imageId, "device", () => loading.value);
 
 // the flow switch is ephemeral UI state seeded by the probe (never
 // persisted; queue kind derives from saved rows)
@@ -211,19 +194,8 @@ const partnerCandidates = computed(() => data.value.prefill?.partner_id_candidat
 watch(
   data,
   (loaded) => {
-    Object.assign(form, emptyFields());
-    if (loaded.prefill != null) applyPrefill(loaded.prefill);
-    if (loaded.saved != null) {
-      // saved (draft) values win, but empty fields fall back to prefill
-      const merged: ResultFields = { ...emptyFields(), ...loaded.prefill };
-      for (const key of Object.keys(emptyFields()) as (keyof ResultFields)[]) {
-        const value = loaded.saved[key];
-        if (value != null) {
-          (merged as Record<string, unknown>)[key] = value;
-        }
-      }
-      Object.assign(form, merged);
-    }
+    // saved (draft) values win, but empty fields fall back to prefill
+    Object.assign(form, mergeFields(emptyFields(), loaded.prefill, loaded.saved));
     markPrefilled(
       prefilledKeys(
         Object.keys(emptyFields()) as (keyof ResultFields)[],
@@ -268,22 +240,6 @@ async function save(): Promise<boolean> {
   }
 }
 
-async function goNext() {
-  let nextId: string | null;
-  try {
-    ({ id: nextId } = await api.getNextImage(imageId.value));
-  } catch (e) {
-    toast.error(`获取下一张失败：${(e as Error).message}`);
-    return;
-  }
-  if (nextId === null) {
-    toast.success("没有未标注的图片了");
-    await router.push("/");
-    return;
-  }
-  await router.replace(`/annotate/${nextId}`);
-}
-
 async function saveAndNext() {
   // the form holds the previous image's values until the load lands
   if (loading.value) return;
@@ -297,24 +253,6 @@ async function saveChecked() {
   form.checked = true;
   await withBusy("saveChecked", async () => {
     if (await save()) await goNext();
-  });
-}
-
-async function skip() {
-  if (loading.value) return;
-  await withBusy("skip", goNext);
-}
-
-async function hideAndNext() {
-  if (loading.value) return;
-  await withBusy("hide", async () => {
-    try {
-      await api.setImageHidden(imageId.value, true);
-    } catch (e) {
-      toast.error(`隐藏失败：${(e as Error).message}`);
-      return;
-    }
-    await goNext();
   });
 }
 

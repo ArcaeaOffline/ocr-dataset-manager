@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { toast } from "vue-sonner";
 import {
   api,
@@ -23,13 +23,13 @@ import ImageViewer from "./ImageViewer.vue";
 import LoadingMask from "@/components/ui/LoadingMask.vue";
 import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
 import SongPicker from "./SongPicker.vue";
-import { useBusy } from "@/composables/useBusy";
 import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
 import { useRequest } from "@/composables/useRequest";
+import { mergeFields } from "@/features/annotate/lib/mergeFields";
+import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
 import { voteHint } from "@/features/annotate/lib/warnings";
 
 const route = useRoute();
-const router = useRouter();
 
 const props = defineProps<{ flow: "device" | "b30" }>();
 
@@ -40,7 +40,6 @@ const emit = defineEmits<{
 const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
 const currentIndex = ref(0);
-const { busyAction, withBusy } = useBusy<"saveChecked" | "saveDraft" | "skip" | "hide">();
 const cardReady = ref(false);
 const viewerOpen = ref(false);
 const overviewOpen = ref(false);
@@ -127,6 +126,10 @@ const { data, loading } = useRequest(
   { initialData: null },
 );
 
+const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
+  "saveChecked" | "saveDraft"
+>(imageId, "b30", () => loading.value);
+
 catalog
   .songs()
   .then((list) => (songs.value = list))
@@ -142,16 +145,10 @@ const checkedIndexes = computed(
 function loadCard(index: number) {
   currentIndex.value = index;
   const cached = cardData[index];
-  const merged: B30ComponentFields = { ...emptyComponent(index), ...cached?.prefill };
-  if (cached?.saved != null) {
-    for (const key of Object.keys(emptyComponent(index)) as (keyof B30ComponentFields)[]) {
-      const value = cached.saved[key];
-      if (key === "index" || key === "checked" || value != null) {
-        (merged as unknown as Record<string, unknown>)[key] = value;
-      }
-    }
-  }
-  Object.assign(form, merged);
+  Object.assign(
+    form,
+    mergeFields(emptyComponent(index), cached?.prefill, cached?.saved, ["index", "checked"]),
+  );
   markPrefilled(prefilledKeys(sourceKeys, cached?.saved, cached?.prefill));
 }
 
@@ -331,40 +328,6 @@ async function saveDraft() {
   await withBusy("saveDraft", async () => {
     await save(false);
   });
-}
-
-async function skip() {
-  if (loading.value) return;
-  await withBusy("skip", goNext);
-}
-
-async function hideAndNext() {
-  if (loading.value) return;
-  await withBusy("hide", async () => {
-    try {
-      await api.setImageHidden(imageId.value, true);
-    } catch (e) {
-      toast.error(`隐藏失败：${(e as Error).message}`);
-      return;
-    }
-    await goNext();
-  });
-}
-
-async function goNext() {
-  let nextId: string | null;
-  try {
-    ({ id: nextId } = await api.getNextImage(imageId.value, "b30"));
-  } catch (e) {
-    toast.error(`获取下一张失败：${(e as Error).message}`);
-    return;
-  }
-  if (nextId === null) {
-    toast.success("没有未标注的 B30 图片了");
-    await router.push("/");
-    return;
-  }
-  await router.replace(`/annotate/${nextId}`);
 }
 
 function selectCard(index: number) {
