@@ -461,9 +461,9 @@ onUnmounted(() => {
 
         <div class="grid grid-cols-4 gap-2">
           <NumberField
-            v-model="form.pure_early"
-            label="pure_early"
-            :prefilled="prefilled.has('pure_early')"
+            v-model="form.far_late"
+            label="far_late"
+            :prefilled="prefilled.has('far_late')"
           />
           <NumberField
             v-model="form.pure_late"
@@ -476,9 +476,9 @@ onUnmounted(() => {
             :prefilled="prefilled.has('far_early')"
           />
           <NumberField
-            v-model="form.far_late"
-            label="far_late"
-            :prefilled="prefilled.has('far_late')"
+            v-model="form.pure_early"
+            label="pure_early"
+            :prefilled="prefilled.has('pure_early')"
           />
         </div>
 
