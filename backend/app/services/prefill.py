@@ -11,7 +11,7 @@ import re
 import sqlite3
 import threading
 from collections import OrderedDict
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
 
 import cv2
 import numpy as np
@@ -51,8 +51,49 @@ _EARLY_LATE_WITH_PURE = re.compile(
 # middle keeps far values parseable under OCR noise
 _EARLY_LATE_PLAIN = re.compile(r"L\s*(\d+).*E\s*(\d+)", re.IGNORECASE)
 
-_cache: OrderedDict[str, PrefillResult] = OrderedDict()
-_cache_lock = threading.Lock()
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+class _Absent:
+    pass
+
+
+_ABSENT = _Absent()
+
+
+class _LockedLru(Generic[K, V]):
+    """Bounded LRU with its own lock. `get` returns `_ABSENT` on a miss
+    so None stays a cacheable value (a b30 layout probe answering "not
+    a B30 screenshot" caches None). Owners compute values under
+    `_compute_lock` - outside this cache's lock - and insert them with
+    `put`."""
+
+    def __init__(self, cap: int) -> None:
+        self._entries: OrderedDict[K, V] = OrderedDict()
+        self._lock = threading.Lock()
+        self._cap = cap
+
+    def get(self, key: K) -> V | _Absent:
+        with self._lock:
+            if key not in self._entries:
+                return _ABSENT
+            self._entries.move_to_end(key)
+            return self._entries[key]
+
+    def put(self, key: K, value: V) -> None:
+        with self._lock:
+            self._entries[key] = value
+            self._entries.move_to_end(key)
+            while len(self._entries) > self._cap:
+                self._entries.popitem(last=False)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+
+
+_cache: _LockedLru[str, PrefillResult] = _LockedLru(CAP)
 # serializes OCR engine + ihdb access; single-user tool, throughput is
 # irrelevant next to correctness. RLock: compute() holds it across the
 # whole run while _get_text_provider() re-acquires it
@@ -107,10 +148,7 @@ def _mask_vote_counts(
 
 def compute(_image_id: str, relative_path: str) -> PrefillResult:
     from arcaea_offline_ocr.crop import CropBlackEdges
-    from arcaea_offline_ocr.providers import (
-        ImageCategory,
-        ImageHashDatabaseIdProvider,
-    )
+    from arcaea_offline_ocr.providers import ImageCategory
     from arcaea_offline_ocr.scenarios.device import (
         DeviceRoisExtractor,
         DeviceScenario,
@@ -213,18 +251,17 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
             enumerate(clear_status_votes), key=lambda it: it[1]
         )[0]
 
-        with sqlite3.connect(IHDB_PATH) as conn:
-            ihdb = ImageHashDatabaseIdProvider(conn)
-            jacket_candidates = ihdb.results(
-                cv2.cvtColor(extractor.jacket, cv2.COLOR_BGR2GRAY),
-                ImageCategory.JACKET,
-            )
-            partner_candidates = ihdb.results(
-                DeviceScenario.preprocess_char_icon(
-                    cv2.cvtColor(extractor.partner_icon, cv2.COLOR_BGR2GRAY),
-                ),
-                ImageCategory.PARTNER_ICON,
-            )
+        ihdb = _get_ihdb()
+        jacket_candidates = ihdb.results(
+            cv2.cvtColor(extractor.jacket, cv2.COLOR_BGR2GRAY),
+            ImageCategory.JACKET,
+        )
+        partner_candidates = ihdb.results(
+            DeviceScenario.preprocess_char_icon(
+                cv2.cvtColor(extractor.partner_icon, cv2.COLOR_BGR2GRAY),
+            ),
+            ImageCategory.PARTNER_ICON,
+        )
         prefill["song_id"], prefill["song_id_candidates"] = rank_candidates(
             jacket_candidates
         )
@@ -235,18 +272,12 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
 
 
 def get(image_id: str, relative_path: str) -> PrefillResult:
-    with _cache_lock:
-        if image_id in _cache:
-            _cache.move_to_end(image_id)
-            return _cache[image_id]
+    cached = _cache.get(image_id)
+    if not isinstance(cached, _Absent):
+        return cached
 
     result = compute(image_id, relative_path)
-
-    with _cache_lock:
-        _cache[image_id] = result
-        _cache.move_to_end(image_id)
-        while len(_cache) > CAP:
-            _cache.popitem(last=False)
+    _cache.put(image_id, result)
     return result
 
 
@@ -273,8 +304,8 @@ def warm(image_ids_and_paths: list[tuple[str, str]]) -> None:
 # (~0.4s each, 50 per screenshot), so they are only computed on request -
 # never warmed in bulk.
 
-_b30_layouts: OrderedDict[str, str | None] = OrderedDict()
-_b30_components: OrderedDict[tuple[str, str, int], ComponentOcr] = OrderedDict()
+_b30_layouts: _LockedLru[str, str | None] = _LockedLru(CAP)
+_b30_components: _LockedLru[tuple[str, str, int], ComponentOcr] = _LockedLru(CAP)
 _ihdb: "ImageHashDatabaseIdProvider | None" = None
 
 
@@ -333,18 +364,13 @@ def _get_recognizer(layout_id: str) -> B30LayoutOcr:
 def b30_layout(image_id: str, relative_path: str) -> str | None:
     """Probe the bot layout of a screenshot; None when it is a device
     screenshot or nothing matches."""
-    with _cache_lock:
-        if image_id in _b30_layouts:
-            return _b30_layouts[image_id]
+    cached = _b30_layouts.get(image_id)
+    if not isinstance(cached, _Absent):
+        return cached
 
     guess = probe(_read_image(relative_path))
     layout = guess.layout if guess is not None and guess.layout != DEVICE else None
-
-    with _cache_lock:
-        _b30_layouts[image_id] = layout
-        _b30_layouts.move_to_end(image_id)
-        while len(_b30_layouts) > CAP:
-            _b30_layouts.popitem(last=False)
+    _b30_layouts.put(image_id, layout)
     return layout
 
 
@@ -363,11 +389,8 @@ def b30_component(
             return None
 
     cache_key = (image_id, layout_id, index)
-    with _cache_lock:
-        cached = _b30_components.get(cache_key)
-    if cached is not None:
-        with _cache_lock:
-            _b30_components.move_to_end(cache_key)
+    cached = _b30_components.get(cache_key)
+    if not isinstance(cached, _Absent):
         return cached
 
     with _compute_lock:
@@ -380,11 +403,7 @@ def b30_component(
             raise ValueError(msg)
         result = recognizer.ocr_component(cards[index], index, providers)
 
-    with _cache_lock:
-        _b30_components[cache_key] = result
-        _b30_components.move_to_end(cache_key)
-        while len(_b30_components) > CAP:
-            _b30_components.popitem(last=False)
+    _b30_components.put(cache_key, result)
     return result
 
 

@@ -6,7 +6,27 @@ import pytest
 
 from app import storage
 from app.services.imports import new_image_id
-from app.services.prefill import _parse_early_late
+from app.services.prefill import _ABSENT, _LockedLru, _parse_early_late
+
+
+def test_locked_lru_miss_none_and_eviction() -> None:
+    cache: _LockedLru[str, int | None] = _LockedLru(2)
+
+    assert cache.get("a") is _ABSENT
+    # None is a cacheable value (a b30 probe answering "not b30")
+    cache.put("a", None)
+    assert cache.get("a") is None
+
+    cache.put("b", 1)
+    assert cache.get("a") is None  # refresh a past b
+    cache.put("c", 2)
+    # cap 2: b is the least recently used and gets evicted
+    assert cache.get("b") is _ABSENT
+    assert cache.get("a") is None
+    assert cache.get("c") == 2
+
+    cache.clear()
+    assert cache.get("a") is _ABSENT
 
 
 def test_file_sha256_known_digest(tmp_path: Path) -> None:
