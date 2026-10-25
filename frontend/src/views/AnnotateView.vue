@@ -34,9 +34,7 @@ const router = useRouter();
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
 const viewerOpen = ref(false);
-const { busyAction, withBusy } = useBusy<
-  "saveChecked" | "saveAndNext" | "skip" | "hide"
->();
+const { busyAction, withBusy } = useBusy<"saveChecked" | "saveAndNext" | "skip" | "hide">();
 
 interface AnnotateData {
   prefill: Prefill | null;

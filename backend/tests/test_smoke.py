@@ -103,9 +103,7 @@ def test_real_ocr_prefill_smoke(fixture_name: str) -> None:
     from app.services import prefill
 
     image_id = uuid.uuid4().hex
-    relative_path, _, _ = storage.import_image(
-        FIXTURES_DIR / fixture_name, image_id
-    )
+    relative_path, _, _ = storage.import_image(FIXTURES_DIR / fixture_name, image_id)
 
     result = prefill.get(image_id, relative_path)
 

@@ -67,9 +67,7 @@ const catalogMatches = computed(() => {
   const q = text.value.trim().toLowerCase();
   if (q === "") return [];
   return props.partners
-    .filter(
-      (p) => p.id.toLowerCase().includes(q) || (p.name ?? "").toLowerCase().includes(q),
-    )
+    .filter((p) => p.id.toLowerCase().includes(q) || (p.name ?? "").toLowerCase().includes(q))
     .slice(0, 8);
 });
 

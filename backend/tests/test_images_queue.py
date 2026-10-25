@@ -131,9 +131,7 @@ def test_next_b30_scan_bound_hides_older_candidate(
         seed.image(created_at=_t(minute), width=canvas_w, height=canvas_h)
 
     calls = probe_layout(
-        lambda image_id, relative_path: LAYOUT_ID
-        if image_id == candidate.id
-        else None
+        lambda image_id, relative_path: LAYOUT_ID if image_id == candidate.id else None
     )
     response = client.get(f"/api/images/{current.id}/next", params={"kind": "b30"})
     # each pass is capped at 50 queue candidates and the candidate sits

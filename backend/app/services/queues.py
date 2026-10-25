@@ -22,12 +22,15 @@ def hidden_filter():
 
 def unchecked_filter():
     # a draft row (checked=false) counts as unchecked just like a missing row
-    return ~exists(
-        select(DeviceResult.image_id).where(
-            DeviceResult.image_id == Image.id,
-            DeviceResult.checked.is_(True),
+    return (
+        ~exists(
+            select(DeviceResult.image_id).where(
+                DeviceResult.image_id == Image.id,
+                DeviceResult.checked.is_(True),
+            )
         )
-    ) & hidden_filter()
+        & hidden_filter()
+    )
 
 
 def b30_done_filter():
@@ -179,9 +182,9 @@ def next_unchecked(session: Session, current: Image, kind: str) -> str | None:
             & (b30_done_filter() | (~device_sq & ~b30_sq & _b30_aspect_matches()))
         )
         for scan_from in (after_current, None):
-            stmt = queue.order_by(
-                Image.created_at.desc(), Image.id.desc()
-            ).limit(_NEXT_SCAN_LIMIT)
+            stmt = queue.order_by(Image.created_at.desc(), Image.id.desc()).limit(
+                _NEXT_SCAN_LIMIT
+            )
             if scan_from is not None:
                 stmt = stmt.where(scan_from)
             for row_id, relative_path, has_b30_row in session.execute(stmt).all():

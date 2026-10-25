@@ -12,6 +12,7 @@ from app.config import _REPO_ROOT, ConfigError, resolve_settings
 def _sqlite_url(path: Path) -> str:
     return f"sqlite:///{path.as_posix()}"
 
+
 _ENV_NAMES = (
     "ODM_CONFIG",
     "ODM_DATA_DIR",
@@ -65,9 +66,7 @@ def test_toml_values_and_relative_base(tmp_path: Path) -> None:
     assert s.effective_database_url == _sqlite_url(tmp_path / "store" / "odm.sqlite3")
 
 
-def test_env_overrides_toml(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_env_overrides_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     cfg = tmp_path / "odm.toml"
     cfg.write_text("port = 9000\n", encoding="utf-8")
     monkeypatch.setenv("ODM_PORT", "9001")

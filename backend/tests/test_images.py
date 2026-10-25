@@ -16,6 +16,7 @@ def _set_hidden(
     assert response.status_code == 200
     return response.json()
 
+
 # same field set as ImageItem in frontend/src/api.ts - the wire contract
 IMAGE_ITEM_KEYS = {
     "id",
@@ -54,9 +55,9 @@ def test_kind_filter_and_total(client: TestClient, seed: SimpleNamespace) -> Non
     assert {i["id"] for i in filtered["items"]} == {b30.id}
     device_items = client.get("/api/images", params={"kind": "device"}).json()["items"]
     assert {i["id"] for i in device_items} == {device.id}
-    unclassified = client.get(
-        "/api/images", params={"kind": "unclassified"}
-    ).json()["items"]
+    unclassified = client.get("/api/images", params={"kind": "unclassified"}).json()[
+        "items"
+    ]
     assert {i["id"] for i in unclassified} == {bare.id}
 
 
@@ -334,6 +335,4 @@ def test_hidden_validates_params_and_missing_image(client: TestClient) -> None:
         client.put("/api/images/missing-id/hidden", json={"hidden": True}).status_code
         == 404
     )
-    assert (
-        client.get("/api/images", params={"hidden": "bogus"}).status_code == 422
-    )
+    assert client.get("/api/images", params={"hidden": "bogus"}).status_code == 422

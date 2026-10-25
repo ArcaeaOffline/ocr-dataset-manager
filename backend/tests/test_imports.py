@@ -96,9 +96,7 @@ def test_import_lifecycle(client: TestClient, source_dir: Path) -> None:
             assert storage.thumb_path_for(image.id).is_file()
             provenance = session.get(OriginalFilename, image.id)
             assert provenance is not None
-        names = {
-            p.original_filename for p in session.scalars(select(OriginalFilename))
-        }
+        names = {p.original_filename for p in session.scalars(select(OriginalFilename))}
         assert names == {"img0.png", "img1.png", "img2.png"}
 
 

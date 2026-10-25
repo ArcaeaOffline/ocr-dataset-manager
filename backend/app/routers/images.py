@@ -202,13 +202,9 @@ def list_images(
     else:
         raise HTTPException(status_code=422, detail=f"invalid hidden: {hidden}")
     device_sq = (
-        select(DeviceResult.image_id)
-        .where(DeviceResult.image_id == Image.id)
-        .exists()
+        select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id).exists()
     )
-    b30_sq = (
-        select(B30Result.image_id).where(B30Result.image_id == Image.id).exists()
-    )
+    b30_sq = select(B30Result.image_id).where(B30Result.image_id == Image.id).exists()
     conditions: list[ColumnElement[bool]] = [hidden_condition]
     if kind is not None:
         if kind not in queues.KIND_FILTERS:
@@ -314,9 +310,7 @@ def _image_out(session: Session, image: Image) -> ImageOut:
 
 
 @router.get("/{image_id}")
-def get_image(
-    image_id: str, session: Session = Depends(get_session)
-) -> ImageOut:
+def get_image(image_id: str, session: Session = Depends(get_session)) -> ImageOut:
     return _image_out(session, _require_image(session, image_id))
 
 

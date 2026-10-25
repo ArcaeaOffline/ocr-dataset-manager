@@ -90,9 +90,7 @@ def test_prefill_maps_service_value_error_to_422(
 
     _install(monkeypatch, b30_layout=lambda *_: None, get=_boom)
 
-    response = client.get(
-        f"/api/images/{image.id}/prefill", params={"flow": "device"}
-    )
+    response = client.get(f"/api/images/{image.id}/prefill", params={"flow": "device"})
     assert response.status_code == 422
 
 

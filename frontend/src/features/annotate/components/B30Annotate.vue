@@ -40,9 +40,7 @@ const emit = defineEmits<{
 const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
 const currentIndex = ref(0);
-const { busyAction, withBusy } = useBusy<
-  "saveChecked" | "saveDraft" | "skip" | "hide"
->();
+const { busyAction, withBusy } = useBusy<"saveChecked" | "saveDraft" | "skip" | "hide">();
 const cardReady = ref(false);
 const viewerOpen = ref(false);
 const overviewOpen = ref(false);
