@@ -29,11 +29,11 @@ due to privacy and copyright issues.
 uv sync --all-packages
 
 # local all-checks: backend format + lint + types + tests,
-# frontend build + lint + format
+# frontend build + tests + lint + format
 uv run ruff format --check backend && uv run ruff check backend && \
   uv run basedpyright backend && \
   (cd backend && uv run pytest -q) && \
-  (cd frontend && pnpm build && pnpm lint && pnpm format:check)
+  (cd frontend && pnpm build && pnpm test && pnpm lint && pnpm format:check)
 ```
 
 ## Mandatory checks

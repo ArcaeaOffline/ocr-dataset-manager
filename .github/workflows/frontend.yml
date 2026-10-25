@@ -29,6 +29,8 @@ jobs:
           require-lockfile: true
       - run: pnpm build
         working-directory: frontend
+      - run: pnpm test
+        working-directory: frontend
       - run: pnpm lint
         working-directory: frontend
       - run: pnpm format:check

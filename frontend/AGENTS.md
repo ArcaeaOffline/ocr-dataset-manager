@@ -19,6 +19,7 @@ For general project conventions, see root AGENTS.md.
 ```bash
 pnpm dev            # dev server; proxies /api to 127.0.0.1:8199
 pnpm build          # vue-tsc + vite (type check + production build)
+pnpm test           # vitest (unit tests; composables and lib helpers)
 pnpm lint           # oxlint
 pnpm format         # oxfmt (write)
 pnpm format:check   # oxfmt (check only)
