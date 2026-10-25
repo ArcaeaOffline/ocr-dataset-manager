@@ -14,7 +14,7 @@ const kindOptions: { value: QueueKind | null; label: string }[] = [
   { value: null, label: "全部" },
   { value: "device", label: "device" },
   { value: "b30", label: "B30/50" },
-  { value: "unclassified", label: "未分类" },
+  { value: "unclassified", label: "分类未知" },
 ];
 
 const { data, loading } = useRequest(
@@ -37,6 +37,23 @@ const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 // thumbnails always exist after import; a load error means the file is
 // gone from disk, which the <img> error event reports
 const thumbFailed = ref<Record<string, true>>({});
+
+// checked === true covers both flows: device carries the row flag, b30
+// carries the derived all-components-checked state
+function isDone(item: ImageItem): boolean {
+  return item.checked === true;
+}
+
+function isDraft(item: ImageItem): boolean {
+  return item.kind === "device" && item.checked === false;
+}
+
+function b30Progress(item: ImageItem): string | null {
+  if (item.kind !== "b30" || item.checked !== false || item.b30_component_count == null) {
+    return null;
+  }
+  return `${item.b30_checked_count ?? 0}/${item.b30_component_count}`;
+}
 </script>
 
 <template>
@@ -99,18 +116,41 @@ const thumbFailed = ref<Record<string, true>>({});
         :to="`/annotate/${item.id}`"
         class="group block overflow-hidden rounded border border-border bg-card hover:border-ring"
       >
-        <img
-          v-if="!thumbFailed[item.id]"
-          :src="api.thumbUrl(item.id)"
-          class="aspect-video w-full object-cover"
-          loading="lazy"
-          @error="thumbFailed[item.id] = true"
-        />
-        <div
-          v-else
-          class="grid aspect-video w-full place-items-center text-xs text-muted-foreground"
-        >
-          无缩略图
+        <div class="relative">
+          <img
+            v-if="!thumbFailed[item.id]"
+            :src="api.thumbUrl(item.id)"
+            class="aspect-video w-full object-cover"
+            loading="lazy"
+            @error="thumbFailed[item.id] = true"
+          />
+          <div
+            v-else
+            class="grid aspect-video w-full place-items-center text-xs text-muted-foreground"
+          >
+            无缩略图
+          </div>
+          <div
+            v-if="isDone(item)"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-white"
+          >
+            <i class="i-lucide-check size-6" />
+            <span class="text-xs">{{ item.kind === "b30" ? "B30 已标注" : "已标注" }}</span>
+          </div>
+          <div
+            v-else-if="isDraft(item)"
+            class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-amber-400/80 px-2 py-1 text-xs text-black backdrop-blur-sm"
+          >
+            <i class="i-lucide-pencil size-3.5" />
+            草稿
+          </div>
+          <div
+            v-else-if="b30Progress(item) !== null"
+            class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-black/60 px-2 py-1 text-xs text-white backdrop-blur-sm"
+          >
+            <i class="i-lucide-list-checks size-3.5" />
+            标注进度 {{ b30Progress(item) }}
+          </div>
         </div>
         <div
           class="flex items-center justify-between gap-1 px-2 py-1 text-xs text-muted-foreground group-hover:text-foreground"
@@ -120,7 +160,7 @@ const thumbFailed = ref<Record<string, true>>({});
             v-if="item.kind !== 'device'"
             class="shrink-0 rounded border border-border px-1 text-[10px]"
           >
-            {{ item.kind === "b30" ? "B30/50" : "未分类" }}
+            {{ item.kind === "b30" ? "B30/50" : "分类未知" }}
           </span>
         </div>
       </RouterLink>

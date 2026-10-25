@@ -2,6 +2,7 @@
 and B30 annotation queues."""
 
 import logging
+from typing import NamedTuple
 
 from sqlalchemy import case, exists, func, or_, select
 from sqlalchemy.orm import Session
@@ -62,9 +63,22 @@ KIND_FILTERS = {
 }
 
 
-def b30_done_map(session: Session, image_ids: list[str]) -> dict[str, bool | None]:
-    """Whether each B30-classified image has every expected component
-    checked; not-b30 images map to None."""
+class B30Progress(NamedTuple):
+    """Review progress of one B30-classified image; `expected` is None
+    when the layout is missing or unknown, in which case the image can
+    never be done."""
+
+    checked: int
+    expected: int | None
+
+    @property
+    def done(self) -> bool:
+        return self.expected is not None and self.checked >= self.expected
+
+
+def b30_progress_map(session: Session, image_ids: list[str]) -> dict[str, B30Progress]:
+    """Review progress for each B30-classified image; images without a
+    `b30_results` row are absent from the map."""
     if not image_ids:
         return {}
     layouts: dict[str, str | None] = {
@@ -86,17 +100,17 @@ def b30_done_map(session: Session, image_ids: list[str]) -> dict[str, bool | Non
             .group_by(B30Component.image_id)
         ).all()
     }
-    result: dict[str, bool | None] = {}
-    for image_id in image_ids:
-        if image_id not in layouts:
-            result[image_id] = None
-            continue
-        layout = layouts[image_id]
-        expected = LAYOUTS.get(layout) if layout is not None else None
-        result[image_id] = (
-            expected is not None and counts.get(image_id, 0) >= expected.component_count
+    return {
+        image_id: B30Progress(
+            checked=counts.get(image_id, 0),
+            expected=(
+                LAYOUTS[layout].component_count
+                if layout is not None and layout in LAYOUTS
+                else None
+            ),
         )
-    return result
+        for image_id, layout in layouts.items()
+    }
 
 
 def kind_of(device_row_exists: bool, b30_row_exists: bool) -> str:

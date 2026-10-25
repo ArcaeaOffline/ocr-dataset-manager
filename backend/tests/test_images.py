@@ -17,6 +17,8 @@ IMAGE_ITEM_KEYS = {
     "height",
     "kind",
     "checked",
+    "b30_checked_count",
+    "b30_component_count",
     "created_at",
 }
 
@@ -33,9 +35,13 @@ def test_kind_filter_and_total(client: TestClient, seed: SimpleNamespace) -> Non
     assert {i["id"] for i in listing["items"]} == {device.id, b30.id, bare.id}
     assert all(set(item) == IMAGE_ITEM_KEYS for item in listing["items"])
 
-    # total counts all images regardless of the kind filter
+    # total counts the same set the items filter, keeping pagination consistent
+    assert client.get("/api/images", params={"kind": "b30"}).json()["total"] == 1
+    assert client.get("/api/images", params={"kind": "device"}).json()["total"] == 1
+    assert (
+        client.get("/api/images", params={"kind": "unclassified"}).json()["total"] == 1
+    )
     filtered = client.get("/api/images", params={"kind": "b30"}).json()
-    assert filtered["total"] == 3
     assert {i["id"] for i in filtered["items"]} == {b30.id}
     device_items = client.get("/api/images", params={"kind": "device"}).json()["items"]
     assert {i["id"] for i in device_items} == {device.id}
@@ -45,7 +51,18 @@ def test_kind_filter_and_total(client: TestClient, seed: SimpleNamespace) -> Non
     assert {i["id"] for i in unclassified} == {bare.id}
 
 
-def test_unchecked_only_device_queue(
+def test_total_follows_unchecked_filter(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    checked = seed.image()
+    seed.device_result(checked, checked=True)
+    seed.image()
+
+    response = client.get("/api/images", params={"unchecked_only": True}).json()
+    assert response["total"] == 1
+
+
+def test_unchecked_only_spans_both_queues(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
     checked = seed.image()
@@ -53,12 +70,53 @@ def test_unchecked_only_device_queue(
     draft = seed.image()
     seed.device_result(draft, checked=False)
     bare = seed.image()
-    b30_only = seed.image()
-    seed.b30_result(b30_only, layout=None)
+    b30_no_layout = seed.image()
+    seed.b30_result(b30_no_layout, layout=None)
 
-    items = client.get("/api/images", params={"unchecked_only": True}).json()["items"]
-    # a draft counts as unchecked; b30-classified images belong to the b30 queue
-    assert {i["id"] for i in items} == {draft.id, bare.id}
+    items = client.get("/api/images", params={"unchecked_only": True}).json()
+    # not-fully-checked b30 images belong to the unchecked view too
+    assert items["total"] == 3
+    assert {i["id"] for i in items["items"]} == {draft.id, bare.id, b30_no_layout.id}
+
+
+def test_unchecked_only_all_includes_partial_b30(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    device_done = seed.image()
+    seed.device_result(device_done, checked=True)
+    bare = seed.image()
+
+    full = seed.image()
+    seed.b30_result(full, layout=LAYOUT_ID)
+    for idx in range(LAYOUT.component_count):
+        seed.b30_component(full, idx, checked=True)
+
+    partial = seed.image()
+    seed.b30_result(partial, layout=LAYOUT_ID)
+    seed.b30_component(partial, 0, checked=True)
+
+    items = client.get("/api/images", params={"unchecked_only": True}).json()
+    assert items["total"] == 2
+    assert {i["id"] for i in items["items"]} == {bare.id, partial.id}
+
+
+def test_unchecked_only_excludes_hybrid_with_checked_device_row(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    """A hybrid image presents as device (queues.kind_of): queue
+    membership follows the device checked flag, not the incomplete b30
+    row."""
+    hybrid = seed.image()
+    seed.device_result(hybrid, checked=True)
+    seed.b30_result(hybrid, layout=LAYOUT_ID)
+    seed.b30_component(hybrid, 0, checked=True)
+
+    all_view = client.get("/api/images", params={"unchecked_only": True}).json()
+    assert all_view["items"] == []
+    b30_view = client.get(
+        "/api/images", params={"unchecked_only": True, "kind": "b30"}
+    ).json()
+    assert b30_view["items"] == []
 
 
 def test_unchecked_only_b30_queue(client: TestClient, seed: SimpleNamespace) -> None:
@@ -104,10 +162,18 @@ def test_checked_and_kind_derivation_in_list(
     by_id = {i["id"]: i for i in client.get("/api/images").json()["items"]}
     assert by_id[full.id]["kind"] == "b30"
     assert by_id[full.id]["checked"] is True
+    assert by_id[full.id]["b30_checked_count"] == LAYOUT.component_count
+    assert by_id[full.id]["b30_component_count"] == LAYOUT.component_count
     assert by_id[partial.id]["checked"] is False
+    assert by_id[partial.id]["b30_checked_count"] == 1
+    assert by_id[partial.id]["b30_component_count"] == LAYOUT.component_count
     assert by_id[no_layout.id]["checked"] is False
+    assert by_id[no_layout.id]["b30_checked_count"] == 0
+    assert by_id[no_layout.id]["b30_component_count"] is None
     assert by_id[device.id]["kind"] == "device"
     assert by_id[device.id]["checked"] is True
+    assert by_id[device.id]["b30_checked_count"] is None
+    assert by_id[device.id]["b30_component_count"] is None
     assert by_id[bare.id]["kind"] == "unclassified"
     assert by_id[bare.id]["checked"] is None
 
@@ -159,15 +225,36 @@ def test_image_detail_derives_kind_and_checked(
     bare = seed.image()
 
     cases = [
-        (full.id, "b30", True),
-        (partial.id, "b30", False),
-        (device.id, "device", True),
-        (bare.id, "unclassified", None),
+        (full.id, "b30", True, LAYOUT.component_count),
+        (partial.id, "b30", False, 1),
+        (device.id, "device", True, None),
+        (bare.id, "unclassified", None, None),
     ]
-    for image_id, kind, checked in cases:
+    for image_id, kind, checked, b30_checked in cases:
         body = client.get(f"/api/images/{image_id}").json()
         assert (body["kind"], body["checked"]) == (kind, checked)
+        assert body["b30_checked_count"] == b30_checked
         assert set(body) == IMAGE_ITEM_KEYS
+
+
+def test_image_detail_hybrid_prefers_device_row(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    """list and detail agree with kind_of on hybrids: the checked flag
+    comes from the device row."""
+    hybrid = seed.image()
+    seed.device_result(hybrid, checked=False)
+    seed.b30_result(hybrid, layout=LAYOUT_ID)
+    seed.b30_component(hybrid, 0, checked=True)
+
+    listed = client.get("/api/images", params={"kind": "device"}).json()
+    assert listed["total"] == 1
+    assert listed["items"][0]["checked"] is False
+    assert listed["items"][0]["b30_checked_count"] is None
+    detail = client.get(f"/api/images/{hybrid.id}").json()
+    assert detail["kind"] == "device"
+    assert detail["checked"] is False
+    assert detail["b30_checked_count"] is None
 
 
 def test_image_detail_404(client: TestClient) -> None:

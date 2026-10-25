@@ -32,6 +32,10 @@ class ImageOut(BaseModel):
     # device: None = not annotated yet; otherwise device_results.checked.
     # b30: whether every component the layout expects is checked.
     checked: bool | None
+    # b30 only: reviewed card count and the layout's expected card count;
+    # expected is None when the layout is missing or unknown
+    b30_checked_count: int | None = None
+    b30_component_count: int | None = None
     created_at: datetime
 
     @classmethod
@@ -41,6 +45,7 @@ class ImageOut(BaseModel):
         original_filename: str | None,
         checked: bool | None,
         kind: str,
+        b30_progress: queues.B30Progress | None = None,
     ) -> "ImageOut":
         return cls(
             id=image.id,
@@ -50,6 +55,8 @@ class ImageOut(BaseModel):
             height=image.height,
             kind=kind,
             checked=checked,
+            b30_checked_count=b30_progress.checked if b30_progress else None,
+            b30_component_count=b30_progress.expected if b30_progress else None,
             created_at=image.created_at.replace(tzinfo=UTC),
         )
 
@@ -179,7 +186,6 @@ def list_images(
     session: Session = Depends(get_session),
 ) -> ImageListOut:
     limit = min(limit, 200)
-    total = session.scalar(select(func.count(Image.id)))
     device_sq = (
         select(DeviceResult.image_id)
         .where(DeviceResult.image_id == Image.id)
@@ -188,6 +194,27 @@ def list_images(
     b30_sq = (
         select(B30Result.image_id).where(B30Result.image_id == Image.id).exists()
     )
+    conditions = []
+    if kind is not None:
+        if kind not in queues.KIND_FILTERS:
+            raise HTTPException(status_code=422, detail=f"unknown kind: {kind}")
+        conditions.append(queues.KIND_FILTERS[kind])
+    if unchecked_only:
+        # a hybrid image presents as device (queues.kind_of); without
+        # ~device_sq the b30 disjuncts would pull checked device images
+        # into the unchecked views
+        if kind == "b30":
+            conditions.append(queues.b30_done_filter() & ~device_sq)
+        elif kind is None:
+            conditions.append(
+                (queues.unchecked_filter() & ~b30_sq)
+                | (queues.b30_done_filter() & ~device_sq)
+            )
+        else:
+            # device queue: a draft row (checked=false) counts as
+            # unchecked just like a missing row; B30-classified images
+            # belong to the B30 queue instead
+            conditions.append(queues.unchecked_filter() & ~b30_sq)
     stmt = select(
         Image,
         OriginalFilename.original_filename,
@@ -197,32 +224,32 @@ def list_images(
         device_sq,
         b30_sq,
     ).outerjoin(OriginalFilename, OriginalFilename.image_id == Image.id)
-    if kind is not None:
-        if kind not in queues.KIND_FILTERS:
-            raise HTTPException(status_code=422, detail=f"unknown kind: {kind}")
-        stmt = stmt.where(queues.KIND_FILTERS[kind])
-    if unchecked_only:
-        if kind == "b30":
-            stmt = stmt.where(queues.b30_done_filter())
-        else:
-            # device queue: a draft row (checked=false) counts as
-            # unchecked just like a missing row; B30-classified images
-            # belong to the B30 queue instead
-            stmt = stmt.where(queues.unchecked_filter() & ~b30_sq)
+    if conditions:
+        stmt = stmt.where(*conditions)
+    # an unfiltered total desyncs pageCount whenever any filter is active
+    total = session.scalar(
+        select(func.count(Image.id)).select_from(Image).where(*conditions)
+    )
     rows = session.execute(
         stmt.order_by(Image.created_at.desc()).offset(offset).limit(limit)
     ).all()
-    done = queues.b30_done_map(session, [row[0].id for row in rows])
+    progress = queues.b30_progress_map(session, [row[0].id for row in rows])
     items = []
     for image, original_filename, checked, has_device, has_b30 in rows:
-        b30_done = done.get(image.id)
-        checked_out = b30_done if has_b30 and not has_device else checked
+        if has_b30 and not has_device:
+            p = progress[image.id]
+            checked_out: bool | None = p.done
+            b30_progress = p
+        else:
+            checked_out = checked
+            b30_progress = None
         items.append(
             ImageOut.of(
                 image,
                 original_filename,
                 checked_out,
                 queues.kind_of(has_device, has_b30),
+                b30_progress,
             )
         )
     return ImageListOut(total=total or 0, items=items)
@@ -253,8 +280,11 @@ def get_image(
     has_device = session.get(DeviceResult, image_id) is not None
     has_b30 = session.get(B30Result, image_id) is not None
     checked_out: bool | None
-    if has_b30:
-        checked_out = queues.b30_done_map(session, [image_id])[image_id]
+    b30_progress: queues.B30Progress | None = None
+    if has_b30 and not has_device:
+        progress = queues.b30_progress_map(session, [image_id])[image_id]
+        checked_out = progress.done
+        b30_progress = progress
     else:
         checked_out = (
             session.scalar(
@@ -268,6 +298,7 @@ def get_image(
         provenance.original_filename if provenance is not None else None,
         checked_out,
         queues.kind_of(has_device, has_b30),
+        b30_progress,
     )
 
 
@@ -464,6 +495,15 @@ def save_result(
     for field in DeviceResultIn.model_fields:
         setattr(result, field, getattr(body, field))
     session.add(result)
+    if body.checked:
+        # a layout-only b30 row carries no annotation work; device wins
+        # the kind derivation (queues.kind_of), so confirming the device
+        # annotation drops it rather than leaving a hybrid
+        component_count = session.scalar(
+            select(func.count()).where(B30Component.image_id == image_id)
+        )
+        if component_count == 0:
+            session.execute(delete(B30Result).where(B30Result.image_id == image_id))
     session.commit()
     return DeviceResultOut(
         **{c: getattr(result, c) for c in DeviceResultIn.model_fields},

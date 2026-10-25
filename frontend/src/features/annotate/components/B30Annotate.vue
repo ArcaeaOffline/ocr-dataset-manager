@@ -97,6 +97,9 @@ const componentCount = computed(() => {
 });
 
 const filename = ref<string | null>(null);
+// kind === "device" means a device_results row exists; confirming a
+// layout on such an image would stack a b30 classification on top of it
+const hasDeviceRow = ref(false);
 const songs = ref<SongEntry[]>([]);
 const songsLoading = ref(true);
 
@@ -112,6 +115,7 @@ const { data, loading } = useRequest(
       api.getImage(id).catch(() => null),
     ]);
     filename.value = image?.original_filename ?? null;
+    hasDeviceRow.value = image?.kind === "device";
     layout.value = saved?.layout ?? prefillLayout;
     if (saved != null) {
       for (const component of saved.components) {
@@ -211,7 +215,7 @@ async function onLayoutChange(value: string | null) {
     loadCard(currentIndex.value);
     return;
   }
-  if (savedComponents.value.length > 0) {
+  if (savedComponents.value.length > 0 || hasDeviceRow.value) {
     pendingLayout.value = value;
     return;
   }
@@ -221,6 +225,22 @@ async function onLayoutChange(value: string | null) {
 // a layout switch awaiting confirmation; non-null opens the confirm dialog
 const pendingLayout = ref<string | null>(null);
 const switchingLayout = ref(false);
+
+// card loss and stacking a b30 classification onto device annotation
+// data are the two things the confirmation guards
+const layoutWarning = computed(() => {
+  if (pendingLayout.value == null) return "";
+  const parts: string[] = [];
+  if (hasDeviceRow.value) {
+    parts.push("该图已有 device 标注，确认后将同时归类为 B30/50。");
+  }
+  if (savedComponents.value.length > 0) {
+    parts.push(
+      `按 ${pendingLayout.value} 重新切分这张图的卡片，已保存的 ${savedComponents.value.length} 张卡标注将被清空。`,
+    );
+  }
+  return parts.join("");
+});
 
 function confirmPendingLayout() {
   if (pendingLayout.value == null) return;
@@ -536,13 +556,9 @@ onUnmounted(() => {
     <ConfirmDialog
       :open="pendingLayout != null"
       title="切换布局"
-      :description="
-        pendingLayout == null
-          ? ''
-          : `按 ${pendingLayout} 重新切分这张图的卡片，已保存的 ${savedComponents.length} 张卡标注将被清空。`
-      "
+      :description="layoutWarning"
       confirm-label="确认切换"
-      destructive
+      :destructive="savedComponents.length > 0"
       :busy="switchingLayout"
       @update:open="
         (open: boolean) => {

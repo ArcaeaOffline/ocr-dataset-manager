@@ -8,6 +8,10 @@ export interface ImageItem {
   // the derived "every component checked" state
   kind: string;
   checked: boolean | null;
+  // b30 images only: reviewed card count and the layout's expected card
+  // count; expected is null when the layout is missing or unknown
+  b30_checked_count: number | null;
+  b30_component_count: number | null;
   created_at: string;
 }
 

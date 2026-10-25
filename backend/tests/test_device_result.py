@@ -5,7 +5,10 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models import DeviceResult
+from app.ocr.b30 import LAYOUTS
 from app.routers.images import DeviceResultIn
+
+LAYOUT_ID = next(iter(LAYOUTS))
 
 # same field set as DeviceResult in frontend/src/api.ts - the wire contract
 RESULT_KEYS = set(DeviceResultIn.model_fields) | {"image_id", "updated_at"}
@@ -79,3 +82,43 @@ def test_put_result_updates_existing_row(
         assert len(rows) == 1
         assert rows[0].score == 1
         assert rows[0].checked is False
+
+
+def test_device_confirm_drops_layout_only_b30_row(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    image = seed.image()
+    seed.b30_result(image, layout=LAYOUT_ID)
+
+    response = client.put(f"/api/images/{image.id}/result", json=_fields())
+    assert response.status_code == 200
+
+    assert client.get(f"/api/images/{image.id}/b30_result").json() is None
+    detail = client.get(f"/api/images/{image.id}").json()
+    assert detail["kind"] == "device"
+    assert detail["checked"] is True
+
+
+def test_device_confirm_keeps_b30_row_with_saved_cards(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    image = seed.image()
+    seed.b30_result(image, layout=LAYOUT_ID)
+    seed.b30_component(image, 0)
+
+    client.put(f"/api/images/{image.id}/result", json=_fields())
+
+    # saved cards (even unchecked drafts) are annotation work, not
+    # leftovers
+    assert client.get(f"/api/images/{image.id}/b30_result").json() is not None
+
+
+def test_device_draft_save_keeps_b30_row(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    image = seed.image()
+    seed.b30_result(image, layout=LAYOUT_ID)
+
+    client.put(f"/api/images/{image.id}/result", json=_fields(checked=False))
+
+    assert client.get(f"/api/images/{image.id}/b30_result").json() is not None
