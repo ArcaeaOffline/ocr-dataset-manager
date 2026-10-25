@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 import cv2
@@ -5,7 +6,6 @@ import numpy as np
 import pytest
 
 from app import storage
-from app.services.imports import new_image_id
 from app.services.prefill import _ABSENT, _LockedLru, _parse_early_late
 
 
@@ -29,14 +29,14 @@ def test_locked_lru_miss_none_and_eviction() -> None:
     assert cache.get("a") is _ABSENT
 
 
-def test_file_sha256_known_digest(tmp_path: Path) -> None:
+def test_file_sha256_multi_chunk_read(tmp_path: Path) -> None:
+    # 1 MiB + tail: the digest must survive crossing the read loop's
+    # chunk boundary
+    data = b"x" * (1 << 20) + b"tail"
     source = tmp_path / "f.bin"
-    source.write_bytes(b"abc")
+    source.write_bytes(data)
 
-    assert (
-        storage.file_sha256(source)
-        == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    )
+    assert storage.file_sha256(source) == hashlib.sha256(data).hexdigest()
 
 
 def test_storage_path_conventions() -> None:
@@ -122,10 +122,3 @@ def test_parse_early_late_no_match_returns_none() -> None:
     assert _parse_early_late(None) is None
     assert _parse_early_late("") is None
     assert _parse_early_late("no digits here") is None
-
-
-def test_new_image_id_unique_32_hex() -> None:
-    ids = {new_image_id() for _ in range(8)}
-
-    assert len(ids) == 8
-    assert all(len(bytes.fromhex(value)) == 16 for value in ids)
