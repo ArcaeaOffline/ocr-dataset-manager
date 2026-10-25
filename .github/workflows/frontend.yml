@@ -1,0 +1,35 @@
+name: frontend
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - frontend/**
+      - .github/workflows/frontend.yml
+  pull_request:
+    paths:
+      - frontend/**
+      - .github/workflows/frontend.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          working-directory: frontend
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+      - run: pnpm build
+        working-directory: frontend
+      - run: pnpm lint
+        working-directory: frontend
+      - run: pnpm format:check
+        working-directory: frontend

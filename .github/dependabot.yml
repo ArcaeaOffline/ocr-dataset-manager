@@ -1,0 +1,21 @@
+version: 2
+
+updates:
+  # actions are SHA-pinned; one bump PR per month instead of one per action
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly

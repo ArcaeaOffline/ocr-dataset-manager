@@ -35,7 +35,6 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not slow'"
 markers = [
-    "slow: real-OCR end-to-end smoke on fixtures; opt in with -m slow",
+    "slow: real-OCR end-to-end smoke on fixtures; deselect with -m 'not slow'",
 ]

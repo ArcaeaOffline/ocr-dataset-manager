@@ -28,9 +28,10 @@ cd backend && uv run uvicorn app.main:app --port 8199
 # single-process mode (serves the built frontend; --no-open: headless)
 uv run odm --no-open
 
-# tests (from backend/)
-uv run pytest            # API and characterization tests
-uv run pytest -m slow    # real-OCR smoke on the committed fixtures
+# tests (from backend/); the real-OCR smoke is part of the default run
+# and skips itself where no ihdb is present (CI)
+uv run pytest
+uv run pytest -m "not slow"  # quick run without the real-OCR smoke
 ```
 
 ## Schema changes
@@ -115,8 +116,9 @@ can be reset any time by deleting `data/odm.sqlite3`.
   in-memory: alembic opens its own connection, and `SessionLocal` is
   name-imported, so monkeypatching could not intercept it.
 - Committed image fixtures are synthetic (hand-drawn SVGs exported to
-  PNG); `-m slow` runs them through the real OCR chain and skips only
-  where the ihdb file is absent.
+  PNG); the real-OCR smoke runs in the default suite, seeded from the
+  repository's `data/ihdb.db` when present (`tests/conftest.py`), and
+  skips on machines without one, e.g. CI.
 
 ## Known limitations / roadmap
 

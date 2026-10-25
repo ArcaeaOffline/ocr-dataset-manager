@@ -3,8 +3,8 @@ real OCR chain (RapidOCR + ihdb).
 
 The PNGs are 100%-scale exports of the SVG sources next to them; after
 re-export, update EXPECTED from the drawn values. Known gaps pinned as
-None: the T1 screens draw early/late in the T2 "(P..)" format the T1
-parser does not match, and the T2 score-diff text defeats detection."""
+None: device_t1_2's pure early/late (drawn as "(P30)(P19)" but not
+recovered), and the T2 score-diff text defeats detection."""
 
 import uuid
 from pathlib import Path
@@ -29,10 +29,10 @@ EXPECTED: dict[str, dict[str, int | None]] = {
         "high_score": 9756125,
         "high_score_delta": 6233,
         "pure_shiny": 1096,
-        "far_late": None,
-        "far_early": None,
-        "pure_late": None,
-        "pure_early": None,
+        "far_late": 15,
+        "far_early": 14,
+        "pure_late": 73,
+        "pure_early": 79,
         "rating_class": 2,  # FUTURE
         "clear_status": 1,  # TRACK COMPLETE
     },
@@ -46,8 +46,8 @@ EXPECTED: dict[str, dict[str, int | None]] = {
         "high_score": 9971605,
         "high_score_delta": 19581,
         "pure_shiny": 971,
-        "far_late": None,
-        "far_early": None,
+        "far_late": 2,
+        "far_early": 0,
         "pure_late": None,
         "pure_early": None,
         "rating_class": 2,  # FUTURE

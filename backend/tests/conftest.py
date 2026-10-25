@@ -26,6 +26,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 _DATA_DIR = Path(tempfile.mkdtemp(prefix="odm-tests-"))
 os.environ["ODM_DATA_DIR"] = _DATA_DIR.as_posix()
 os.environ["ODM_DATABASE_URL"] = f"sqlite:///{(_DATA_DIR / 'odm.sqlite3').as_posix()}"
+
+# the real-OCR smoke needs an ihdb in the data dir; seed one from the
+# repository's runtime copy so the smoke runs on machines that have it
+# and skips otherwise (CI)
+if "ODM_IHDB_PATH" not in os.environ:
+    _ihdb = Path(__file__).resolve().parents[2] / "data" / "ihdb.db"
+    if _ihdb.is_file():
+        shutil.copy(_ihdb, _DATA_DIR / "ihdb.db")
+
 atexit.register(shutil.rmtree, _DATA_DIR, True)
 
 
@@ -53,8 +62,8 @@ def isolated_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     from app.models import Base
     from app.routers import catalog as catalog_router
 
-    # -m slow runs without the client fixture, so the tmp database may
-    # never have been migrated
+    # the real-OCR smoke runs without the client fixture, so the tmp
+    # database may never have been migrated
     if inspect(engine).has_table("images"):
         with SessionLocal() as session:
             for table in reversed(Base.metadata.sorted_tables):
