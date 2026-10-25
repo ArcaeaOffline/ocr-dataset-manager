@@ -34,7 +34,9 @@ const router = useRouter();
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
 const viewerOpen = ref(false);
-const { busyAction, withBusy } = useBusy<"saveChecked" | "saveAndNext" | "skip">();
+const { busyAction, withBusy } = useBusy<
+  "saveChecked" | "saveAndNext" | "skip" | "hide"
+>();
 
 interface AnnotateData {
   prefill: Prefill | null;
@@ -305,6 +307,19 @@ async function skip() {
   await withBusy("skip", goNext);
 }
 
+async function hideAndNext() {
+  if (loading.value) return;
+  await withBusy("hide", async () => {
+    try {
+      await api.setImageHidden(imageId.value, true);
+    } catch (e) {
+      toast.error(`隐藏失败：${(e as Error).message}`);
+      return;
+    }
+    await goNext();
+  });
+}
+
 const warnings = computed(() => computeWarnings(form));
 
 function onKeydown(event: KeyboardEvent) {
@@ -350,7 +365,24 @@ onUnmounted(() => {
       </div>
       <!-- break-all: imported filenames are one long unbreakable token
            that would otherwise widen the page -->
-      <p class="mt-1 break-all text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
+      <div class="mt-1 flex items-center justify-between gap-2">
+        <p class="break-all text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
+        <Button
+          variant="secondary"
+          class="shrink-0 text-xs"
+          :disabled="busyAction !== null"
+          @click="hideAndNext"
+        >
+          <i
+            :class="
+              busyAction === 'hide'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-eye-off size-4'
+            "
+          />
+          隐藏并下一张
+        </Button>
+      </div>
     </section>
 
     <section class="space-y-4">

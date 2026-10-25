@@ -8,6 +8,14 @@ from app.ocr.b30 import LAYOUTS
 LAYOUT_ID = next(iter(LAYOUTS))
 LAYOUT = LAYOUTS[LAYOUT_ID]
 
+
+def _set_hidden(
+    client: TestClient, image_id: str, hidden: bool = True
+) -> dict[str, object]:
+    response = client.put(f"/api/images/{image_id}/hidden", json={"hidden": hidden})
+    assert response.status_code == 200
+    return response.json()
+
 # same field set as ImageItem in frontend/src/api.ts - the wire contract
 IMAGE_ITEM_KEYS = {
     "id",
@@ -19,6 +27,7 @@ IMAGE_ITEM_KEYS = {
     "checked",
     "b30_checked_count",
     "b30_component_count",
+    "hidden",
     "created_at",
 }
 
@@ -259,3 +268,72 @@ def test_image_detail_hybrid_prefers_device_row(
 
 def test_image_detail_404(client: TestClient) -> None:
     assert client.get("/api/images/missing-id").status_code == 404
+
+
+def test_hidden_default_excluded_and_only_listed(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    hidden_img = seed.image()
+    seed.device_result(hidden_img, checked=True)
+    visible = seed.image()
+
+    body = _set_hidden(client, hidden_img.id)
+    assert body["hidden"] is True
+
+    default = client.get("/api/images").json()
+    assert default["total"] == 1
+    assert {i["id"] for i in default["items"]} == {visible.id}
+
+    only = client.get("/api/images", params={"hidden": "only"}).json()
+    assert only["total"] == 1
+    assert {i["id"] for i in only["items"]} == {hidden_img.id}
+
+
+def test_hidden_put_idempotent_and_reversible(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    image = seed.image()
+
+    for _ in range(2):
+        body = _set_hidden(client, image.id)
+        assert body["hidden"] is True
+        assert set(body) == IMAGE_ITEM_KEYS
+    assert client.get(f"/api/images/{image.id}").json()["hidden"] is True
+
+    assert _set_hidden(client, image.id, hidden=False)["hidden"] is False
+    assert client.get(f"/api/images/{image.id}").json()["hidden"] is False
+    assert client.get("/api/images").json()["total"] == 1
+
+
+def test_hidden_excluded_from_kind_and_unchecked_views(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    hidden_bare = seed.image()
+    hidden_device = seed.image()
+    seed.device_result(hidden_device, checked=False)
+    visible = seed.image()
+    for image in (hidden_bare, hidden_device):
+        _set_hidden(client, image.id)
+
+    unchecked = client.get("/api/images", params={"unchecked_only": True}).json()
+    assert {i["id"] for i in unchecked["items"]} == {visible.id}
+    assert unchecked["total"] == 1
+    expected_by_kind = {
+        "device": set(),
+        "b30": set(),
+        "unclassified": {visible.id},
+    }
+    for kind, expected in expected_by_kind.items():
+        view = client.get("/api/images", params={"kind": kind}).json()
+        assert {i["id"] for i in view["items"]} == expected
+        assert view["total"] == len(expected)
+
+
+def test_hidden_validates_params_and_missing_image(client: TestClient) -> None:
+    assert (
+        client.put("/api/images/missing-id/hidden", json={"hidden": True}).status_code
+        == 404
+    )
+    assert (
+        client.get("/api/images", params={"hidden": "bogus"}).status_code == 422
+    )

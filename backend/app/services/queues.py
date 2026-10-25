@@ -15,6 +15,11 @@ from . import prefill
 logger = logging.getLogger(__name__)
 
 
+def hidden_filter():
+    """Hidden images belong to no annotation queue."""
+    return Image.hidden.is_(False)
+
+
 def unchecked_filter():
     # a draft row (checked=false) counts as unchecked just like a missing row
     return ~exists(
@@ -22,7 +27,7 @@ def unchecked_filter():
             DeviceResult.image_id == Image.id,
             DeviceResult.checked.is_(True),
         )
-    )
+    ) & hidden_filter()
 
 
 def b30_done_filter():
@@ -54,12 +59,15 @@ def b30_done_filter():
 KIND_FILTERS = {
     "device": exists(
         select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id)
-    ),
-    "b30": exists(select(B30Result.image_id).where(B30Result.image_id == Image.id)),
+    )
+    & hidden_filter(),
+    "b30": exists(select(B30Result.image_id).where(B30Result.image_id == Image.id))
+    & hidden_filter(),
     "unclassified": ~exists(
         select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id)
     )
-    & ~exists(select(B30Result.image_id).where(B30Result.image_id == Image.id)),
+    & ~exists(select(B30Result.image_id).where(B30Result.image_id == Image.id))
+    & hidden_filter(),
 }
 
 
@@ -167,7 +175,8 @@ def next_unchecked(session: Session, current: Image, kind: str) -> str | None:
             select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id)
         )
         queue = select(Image.id, Image.relative_path, b30_sq).where(
-            b30_done_filter() | (~device_sq & ~b30_sq & _b30_aspect_matches())
+            hidden_filter()
+            & (b30_done_filter() | (~device_sq & ~b30_sq & _b30_aspect_matches()))
         )
         for scan_from in (after_current, None):
             stmt = queue.order_by(

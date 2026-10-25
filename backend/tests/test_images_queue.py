@@ -23,6 +23,11 @@ def _t(minutes: int) -> datetime:
     return _BASE + timedelta(minutes=minutes)
 
 
+def _set_hidden(client: TestClient, image_id: str) -> None:
+    response = client.put(f"/api/images/{image_id}/hidden", json={"hidden": True})
+    assert response.status_code == 200
+
+
 @pytest.fixture
 def probe_layout(monkeypatch: pytest.MonkeyPatch):
     """Swap prefill.b30_layout for a recording fake; call with a layout
@@ -147,3 +152,33 @@ def test_next_validates_kind_and_current_image(
         == 422
     )
     assert client.get("/api/images/missing-id/next").status_code == 404
+
+
+def test_next_device_skips_hidden(client: TestClient, seed: SimpleNamespace) -> None:
+    done = seed.image(created_at=_t(3))
+    seed.device_result(done, checked=True)
+    hidden_img = seed.image(created_at=_t(2))
+    visible = seed.image(created_at=_t(1))
+    _set_hidden(client, hidden_img.id)
+
+    assert client.get(f"/api/images/{done.id}/next").json() == {"id": visible.id}
+    # a hidden image can still anchor a scan; it just never comes back
+    assert client.get(f"/api/images/{hidden_img.id}/next").json() == {"id": visible.id}
+
+
+def test_next_b30_skips_hidden(client: TestClient, seed: SimpleNamespace) -> None:
+    current = seed.image(created_at=_t(3))
+    partial = seed.image(created_at=_t(2))
+    seed.b30_result(partial, layout=LAYOUT_ID)
+    seed.b30_component(partial, 0, checked=True)
+    hidden_img = seed.image(created_at=_t(1))
+    seed.b30_result(hidden_img, layout=None)
+    _set_hidden(client, hidden_img.id)
+
+    assert client.get(
+        f"/api/images/{current.id}/next", params={"kind": "b30"}
+    ).json() == {"id": partial.id}
+    # past the hidden tail the scan wraps back to the queue head
+    assert client.get(
+        f"/api/images/{partial.id}/next", params={"kind": "b30"}
+    ).json() == {"id": partial.id}

@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, false
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -43,6 +43,11 @@ class Image(Base):
     image_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # lifecycle flag: hidden images keep their row as a sha256 dedup
+    # anchor and belong to no annotation queue
+    hidden: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     import_batch_id: Mapped[str | None] = mapped_column(
         String(32), ForeignKey("import_batches.id"), nullable=True
     )

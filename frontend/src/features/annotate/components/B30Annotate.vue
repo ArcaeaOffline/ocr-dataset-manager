@@ -40,7 +40,9 @@ const emit = defineEmits<{
 const imageId = computed(() => String(route.params.id));
 const layout = ref<string | null>(null);
 const currentIndex = ref(0);
-const { busyAction, withBusy } = useBusy<"saveChecked" | "saveDraft" | "skip">();
+const { busyAction, withBusy } = useBusy<
+  "saveChecked" | "saveDraft" | "skip" | "hide"
+>();
 const cardReady = ref(false);
 const viewerOpen = ref(false);
 const overviewOpen = ref(false);
@@ -338,6 +340,19 @@ async function skip() {
   await withBusy("skip", goNext);
 }
 
+async function hideAndNext() {
+  if (loading.value) return;
+  await withBusy("hide", async () => {
+    try {
+      await api.setImageHidden(imageId.value, true);
+    } catch (e) {
+      toast.error(`隐藏失败：${(e as Error).message}`);
+      return;
+    }
+    await goNext();
+  });
+}
+
 async function goNext() {
   let nextId: string | null;
   try {
@@ -468,7 +483,26 @@ onUnmounted(() => {
           <i class="i-lucide-arrow-right size-4" />
         </Button>
       </div>
-      <p class="mt-1 break-all text-xs text-muted-foreground">{{ filename ?? imageId }}</p>
+      <div class="mt-1 flex items-start justify-between gap-2">
+        <p class="break-all text-xs text-muted-foreground">
+          {{ filename ?? imageId }}
+        </p>
+        <Button
+          variant="secondary"
+          class="shrink-0 text-xs"
+          :disabled="busyAction !== null"
+          @click="hideAndNext"
+        >
+          <i
+            :class="
+              busyAction === 'hide'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-eye-off size-4'
+            "
+          />
+          隐藏并下一张
+        </Button>
+      </div>
     </section>
 
     <section class="space-y-4">

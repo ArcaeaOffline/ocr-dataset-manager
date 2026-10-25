@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.orm import Session
 
 from .. import storage
@@ -36,6 +36,7 @@ class ImageOut(BaseModel):
     # expected is None when the layout is missing or unknown
     b30_checked_count: int | None = None
     b30_component_count: int | None = None
+    hidden: bool
     created_at: datetime
 
     @classmethod
@@ -57,6 +58,7 @@ class ImageOut(BaseModel):
             checked=checked,
             b30_checked_count=b30_progress.checked if b30_progress else None,
             b30_component_count=b30_progress.expected if b30_progress else None,
+            hidden=image.hidden,
             created_at=image.created_at.replace(tzinfo=UTC),
         )
 
@@ -114,6 +116,10 @@ class B30ResultOut(BaseModel):
 class ImageListOut(BaseModel):
     total: int
     items: list[ImageOut]
+
+
+class HiddenIn(BaseModel):
+    hidden: bool
 
 
 class NextImageOut(BaseModel):
@@ -183,9 +189,18 @@ def list_images(
     limit: int = 50,
     unchecked_only: bool = False,
     kind: str | None = None,
+    hidden: str | None = None,
     session: Session = Depends(get_session),
 ) -> ImageListOut:
+    """`hidden` absent: exclude hidden images; `hidden=only`: list only
+    hidden ones."""
     limit = min(limit, 200)
+    if hidden is None:
+        hidden_condition = Image.hidden.is_(False)
+    elif hidden == "only":
+        hidden_condition = Image.hidden.is_(True)
+    else:
+        raise HTTPException(status_code=422, detail=f"invalid hidden: {hidden}")
     device_sq = (
         select(DeviceResult.image_id)
         .where(DeviceResult.image_id == Image.id)
@@ -194,7 +209,7 @@ def list_images(
     b30_sq = (
         select(B30Result.image_id).where(B30Result.image_id == Image.id).exists()
     )
-    conditions = []
+    conditions: list[ColumnElement[bool]] = [hidden_condition]
     if kind is not None:
         if kind not in queues.KIND_FILTERS:
             raise HTTPException(status_code=422, detail=f"unknown kind: {kind}")
@@ -271,24 +286,20 @@ def _require_image(session: Session, image_id: str) -> Image:
     return image
 
 
-@router.get("/{image_id}")
-def get_image(
-    image_id: str, session: Session = Depends(get_session)
-) -> ImageOut:
-    image = _require_image(session, image_id)
-    provenance = session.get(OriginalFilename, image_id)
-    has_device = session.get(DeviceResult, image_id) is not None
-    has_b30 = session.get(B30Result, image_id) is not None
+def _image_out(session: Session, image: Image) -> ImageOut:
+    provenance = session.get(OriginalFilename, image.id)
+    has_device = session.get(DeviceResult, image.id) is not None
+    has_b30 = session.get(B30Result, image.id) is not None
     checked_out: bool | None
     b30_progress: queues.B30Progress | None = None
     if has_b30 and not has_device:
-        progress = queues.b30_progress_map(session, [image_id])[image_id]
+        progress = queues.b30_progress_map(session, [image.id])[image.id]
         checked_out = progress.done
         b30_progress = progress
     else:
         checked_out = (
             session.scalar(
-                select(DeviceResult.checked).where(DeviceResult.image_id == image_id)
+                select(DeviceResult.checked).where(DeviceResult.image_id == image.id)
             )
             if has_device
             else None
@@ -300,6 +311,25 @@ def get_image(
         queues.kind_of(has_device, has_b30),
         b30_progress,
     )
+
+
+@router.get("/{image_id}")
+def get_image(
+    image_id: str, session: Session = Depends(get_session)
+) -> ImageOut:
+    return _image_out(session, _require_image(session, image_id))
+
+
+@router.put("/{image_id}/hidden")
+def set_image_hidden(
+    image_id: str, body: HiddenIn, session: Session = Depends(get_session)
+) -> ImageOut:
+    """Hiding is reversible and idempotent; the row stays as a sha256
+    dedup anchor, so re-importing the same file still counts as skipped."""
+    image = _require_image(session, image_id)
+    image.hidden = body.hidden
+    session.commit()
+    return _image_out(session, image)
 
 
 @router.get("/{image_id}/next")

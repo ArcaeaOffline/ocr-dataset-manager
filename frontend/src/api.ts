@@ -12,6 +12,8 @@ export interface ImageItem {
   // count; expected is null when the layout is missing or unknown
   b30_checked_count: number | null;
   b30_component_count: number | null;
+  // lifecycle flag: hidden images stay dedup anchors but appear in no queue
+  hidden: boolean;
   created_at: string;
 }
 
@@ -177,11 +179,18 @@ export const api = {
     offset: number,
     limit: number,
     kind: QueueKind | null = null,
+    hiddenOnly = false,
   ) =>
     request<{ total: number; items: ImageItem[] }>(
-      `/api/images?unchecked_only=${uncheckedOnly}&offset=${offset}&limit=${limit}${kind ? `&kind=${kind}` : ""}`,
+      `/api/images?unchecked_only=${uncheckedOnly}&offset=${offset}&limit=${limit}${kind ? `&kind=${kind}` : ""}${hiddenOnly ? "&hidden=only" : ""}`,
     ),
   getImage: (id: string) => request<ImageItem>(`/api/images/${id}`),
+  // reversible and idempotent
+  setImageHidden: (id: string, hidden: boolean) =>
+    request<ImageItem>(`/api/images/${id}/hidden`, {
+      method: "PUT",
+      body: JSON.stringify({ hidden }),
+    }),
   // null id = no unchecked image left
   getNextImage: (id: string, kind: QueueKind = "device") =>
     request<{ id: string | null }>(`/api/images/${id}/next?kind=${kind}`),

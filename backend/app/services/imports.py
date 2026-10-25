@@ -97,7 +97,8 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
     from . import prefill  # noqa: PLC0415
 
     # the prefill LRU only holds prefill.CAP entries, so warming more than
-    # the head of the annotation queue is wasted OCR work
+    # the head of the annotation queue is wasted OCR work; hidden images
+    # belong to no queue
     with SessionLocal() as session:
         queue_head = session.execute(
             select(Image.id, Image.relative_path)
@@ -107,7 +108,8 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
                         DeviceResult.image_id == Image.id,
                         DeviceResult.checked.is_(True),
                     )
-                )
+                ),
+                Image.hidden.is_(False),
             )
             .order_by(Image.created_at.desc(), Image.id.desc())
             .limit(prefill.CAP)

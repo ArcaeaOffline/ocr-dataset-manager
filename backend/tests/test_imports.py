@@ -31,6 +31,11 @@ def _write_png(path: Path, fill: int) -> None:
     assert cv2.imwrite(str(path), np.full((48, 32, 3), fill, dtype=np.uint8))
 
 
+def _set_hidden(client: TestClient, image_id: str) -> None:
+    response = client.put(f"/api/images/{image_id}/hidden", json={"hidden": True})
+    assert response.status_code == 200
+
+
 def _wait_finished(
     client: TestClient, batch_id: str, timeout_s: float = 15.0
 ) -> dict[str, object]:
@@ -195,3 +200,45 @@ def test_scan_filters_by_image_extension_and_honors_recursive(tmp_path: Path) ->
         for p in imports_service._scan(tmp_path, True)
     ]
     assert deep == ["a.png", "b.PNG", "nested/c.jpeg"]
+
+
+def test_reimport_hidden_content_counts_skipped(
+    client: TestClient, source_dir: Path
+) -> None:
+    """Hiding keeps the row, so the sha256 dedup must treat a re-import of
+    the same file as a skip, not a new image."""
+    _write_png(source_dir / "a.png", 21)
+    assert _start_and_wait(client, source_dir)["imported_count"] == 1
+
+    with SessionLocal() as session:
+        image_id = session.scalars(select(Image.id)).one()
+    _set_hidden(client, image_id)
+
+    batch = _start_and_wait(client, source_dir)
+    assert batch["skipped_count"] == 1
+    assert batch["imported_count"] == 0
+    with SessionLocal() as session:
+        assert len(session.scalars(select(Image)).all()) == 1
+
+
+def test_import_warmup_excludes_hidden(
+    client: TestClient, source_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import prefill
+
+    _write_png(source_dir / "a.png", 31)
+    assert _start_and_wait(client, source_dir)["imported_count"] == 1
+    with SessionLocal() as session:
+        hidden_id = session.scalars(select(Image.id)).one()
+    _set_hidden(client, hidden_id)
+
+    _write_png(source_dir / "b.png", 32)
+    warmed: list[tuple[str, str]] = []
+    monkeypatch.setattr(prefill, "warm", lambda pending: warmed.extend(pending))
+    assert _start_and_wait(client, source_dir)["imported_count"] == 1
+
+    with SessionLocal() as session:
+        visible_id = session.scalars(
+            select(Image.id).where(Image.id != hidden_id)
+        ).one()
+    assert [image_id for image_id, _ in warmed] == [visible_id]
