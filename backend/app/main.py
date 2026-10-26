@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute
+from fastapi_problem_details import init_app as init_problem_details
 
 from .config import settings
 from .db import init_db
@@ -36,6 +37,12 @@ app = FastAPI(
     lifespan=lifespan,
     generate_unique_id_function=_operation_id,
 )
+
+# errors become RFC 9457 problem+json; the library also injects the
+# schema-wide `default` response, which is why the spec has no
+# HTTPValidationError documentation
+init_problem_details(app)
+
 app.include_router(imports.router)
 app.include_router(images.router)
 app.include_router(catalog.router)

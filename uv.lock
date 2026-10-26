@@ -301,6 +301,19 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi-problem-details"
+version = "0.1.5"
+source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/d9/35/d02c5905f14ab74afb6de779cfcd9cb028c89042342421a509195dfbc77d/fastapi_problem_details-0.1.5.tar.gz", hash = "sha256:7aa0185580c4428db2ab820e7d3364cec47b4866701e30e9a03cc69dcf69255f", size = 18956, upload-time = "2026-08-06T07:37:40.983Z" }
+wheels = [
+    { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/0b/e1/07b13810bec34e829cefacb7e6ad84d91605680da13200e70038aefcc575/fastapi_problem_details-0.1.5-py3-none-any.whl", hash = "sha256:06b1d4bef6f1b94aa20f34ad3621d5003106cf22886df884281766c8d5ca5d32", size = 12334, upload-time = "2026-08-06T07:37:40.185Z" },
+]
+
+[[package]]
 name = "flatbuffers"
 version = "25.12.19"
 source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/" }
@@ -722,6 +735,7 @@ dependencies = [
     { name = "alembic" },
     { name = "arcaea-offline-ocr" },
     { name = "fastapi" },
+    { name = "fastapi-problem-details" },
     { name = "pydantic" },
     { name = "rapidocr" },
     { name = "sqlalchemy" },
@@ -743,6 +757,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13" },
     { name = "arcaea-offline-ocr", specifier = ">=0.1.0b2" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "fastapi-problem-details", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2" },
     { name = "rapidocr", extras = ["onnxruntime"], specifier = ">=2" },
     { name = "sqlalchemy", specifier = ">=2" },
