@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.routing import APIRoute
 
 from .config import settings
 from .db import init_db
@@ -24,7 +25,17 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
 
-app = FastAPI(title="OCR Dataset Manager", lifespan=lifespan)
+# operation ids become generated client function names
+def _operation_id(route: APIRoute) -> str:
+    head, *rest = route.name.split("_")
+    return head + "".join(part.capitalize() for part in rest)
+
+
+app = FastAPI(
+    title="OCR Dataset Manager",
+    lifespan=lifespan,
+    generate_unique_id_function=_operation_id,
+)
 app.include_router(imports.router)
 app.include_router(images.router)
 app.include_router(catalog.router)
