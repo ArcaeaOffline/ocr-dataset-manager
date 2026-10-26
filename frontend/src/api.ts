@@ -1,4 +1,5 @@
-import type { components } from "./api-schema";
+import createClient from "openapi-fetch";
+import type { components, paths } from "./api-schema";
 
 type Schemas = components["schemas"];
 
@@ -53,16 +54,28 @@ export type PartnerEntry = Schemas["PartnerOut"];
 export const RATING_CLASS_NAMES = ["PST", "PRS", "FTR", "BYD", "ETR"];
 export const CLEAR_STATUS_NAMES = ["TL", "TC", "FR", "PM", "EC", "HC"];
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.detail ?? res.statusText);
+const client = createClient<paths>();
+
+// FastAPI errors carry a string `detail`; request-validation errors an
+// array of objects
+function detailOf(error: unknown): string | null {
+  const detail = (error as { detail?: unknown } | null | undefined)?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return JSON.stringify(detail);
+  return null;
+}
+
+// openapi-fetch resolves non-2xx responses to `error` instead of
+// throwing; this restores the throw-on-failure contract the api object
+// and useRequest are built on
+async function unwrap<T>(
+  request: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T> {
+  const { data, error, response } = await request;
+  if (error) {
+    throw new Error(detailOf(error) ?? response.statusText);
   }
-  return res.json();
+  return data as T;
 }
 
 const catalogCache: Record<"songs" | "partners", Promise<unknown> | null> = {
@@ -70,9 +83,9 @@ const catalogCache: Record<"songs" | "partners", Promise<unknown> | null> = {
   partners: null,
 };
 
-function cachedCatalog<T>(key: "songs" | "partners", path: string): Promise<T> {
+function cachedCatalog<T>(key: "songs" | "partners", fetcher: () => Promise<T>): Promise<T> {
   // a failed fetch is not memoized, so the next call retries
-  catalogCache[key] ??= request<T>(path).catch((e: Error) => {
+  catalogCache[key] ??= fetcher().catch((e: Error) => {
     catalogCache[key] = null;
     throw e;
   });
@@ -80,11 +93,14 @@ function cachedCatalog<T>(key: "songs" | "partners", path: string): Promise<T> {
 }
 
 export const catalog = {
-  songs: () => cachedCatalog<SongEntry[]>("songs", "/api/catalog/songs"),
-  partners: () => cachedCatalog<PartnerEntry[]>("partners", "/api/catalog/partners"),
+  songs: () => cachedCatalog("songs", () => unwrap(client.GET("/api/catalog/songs"))),
+  partners: () => cachedCatalog("partners", () => unwrap(client.GET("/api/catalog/partners"))),
   partnerIconUrl: (id: string) => `/api/catalog/partners/${id}/icon`,
 };
 
+// the assertions restore the narrower runtime aliases: saved records
+// always serialize every field (see the Required<> aliases) and
+// PrefillResponse's exclude_unset union is narrower than its schema
 export const api = {
   listImages: (
     uncheckedOnly: boolean,
@@ -93,53 +109,89 @@ export const api = {
     kind: QueueKind | null = null,
     hiddenOnly = false,
   ) =>
-    request<Schemas["ImageListOut"]>(
-      `/api/images?unchecked_only=${uncheckedOnly}&offset=${offset}&limit=${limit}${kind ? `&kind=${kind}` : ""}${hiddenOnly ? "&hidden=only" : ""}`,
+    unwrap(
+      client.GET("/api/images", {
+        params: {
+          query: {
+            unchecked_only: uncheckedOnly,
+            offset,
+            limit,
+            kind: kind ?? undefined,
+            hidden: hiddenOnly ? "only" : undefined,
+          },
+        },
+      }),
     ),
-  getImage: (id: string) => request<ImageItem>(`/api/images/${id}`),
+  getImage: (id: string) =>
+    unwrap(client.GET("/api/images/{image_id}", { params: { path: { image_id: id } } })),
   // reversible and idempotent
   setImageHidden: (id: string, hidden: boolean) =>
-    request<ImageItem>(`/api/images/${id}/hidden`, {
-      method: "PUT",
-      body: JSON.stringify({ hidden }),
-    }),
+    unwrap(
+      client.PUT("/api/images/{image_id}/hidden", {
+        params: { path: { image_id: id } },
+        body: { hidden },
+      }),
+    ),
   // null id = no unchecked image left
-  getNextImage: (id: string, kind: QueueKind = "device") =>
-    request<{ id: string | null }>(`/api/images/${id}/next?kind=${kind}`),
+  getNextImage: (id: string, kind: "device" | "b30" = "device") =>
+    unwrap(
+      client.GET("/api/images/{image_id}/next", {
+        params: { path: { image_id: id }, query: { kind } },
+      }),
+    ),
   // flow=device forces the device proposal even for b30-probed images
   getPrefill: (id: string, flow?: "device") =>
-    request<PrefillResponse>(`/api/images/${id}/prefill${flow ? `?flow=${flow}` : ""}`),
+    unwrap(
+      client.GET("/api/images/{image_id}/prefill", {
+        params: { path: { image_id: id }, query: { flow } },
+      }),
+    ) as Promise<PrefillResponse>,
   getResult: (id: string) =>
     // null = not annotated yet
-    request<DeviceResult | null>(`/api/images/${id}/result`),
+    unwrap(
+      client.GET("/api/images/{image_id}/result", {
+        params: { path: { image_id: id } },
+      }),
+    ) as Promise<DeviceResult | null>,
   saveResult: (id: string, fields: ResultFields) =>
-    request<DeviceResult>(`/api/images/${id}/result`, {
-      method: "PUT",
-      body: JSON.stringify(fields),
-    }),
+    unwrap(
+      client.PUT("/api/images/{image_id}/result", {
+        params: { path: { image_id: id } },
+        body: fields,
+      }),
+    ) as Promise<DeviceResult>,
   getB30Result: (id: string) =>
     // null = not annotated yet
-    request<B30Result | null>(`/api/images/${id}/b30_result`),
+    unwrap(
+      client.GET("/api/images/{image_id}/b30_result", {
+        params: { path: { image_id: id } },
+      }),
+    ) as Promise<B30Result | null>,
   // upserts the given components only; others stay untouched
   saveB30Result: (id: string, layout: string | null, components: B30ComponentFields[]) =>
-    request<B30Result>(`/api/images/${id}/b30_result`, {
-      method: "PUT",
-      body: JSON.stringify({ layout, components }),
-    }),
+    unwrap(
+      client.PUT("/api/images/{image_id}/b30_result", {
+        params: { path: { image_id: id } },
+        body: { layout, components },
+      }),
+    ) as Promise<B30Result>,
   // layout overrides the backend's probed layout when given
   getB30ComponentPrefill: (id: string, index: number, layout?: string) =>
-    request<B30ComponentPrefill>(
-      `/api/images/${id}/b30_prefill/${index}${layout ? `?layout=${layout}` : ""}`,
-    ),
+    unwrap(
+      client.GET("/api/images/{image_id}/b30_prefill/{component_index}", {
+        params: { path: { image_id: id, component_index: index }, query: { layout } },
+      }),
+    ) as Promise<B30ComponentPrefill>,
   b30CardUrl: (id: string, index: number, layout?: string) =>
     `/api/images/${id}/b30_card/${index}${layout ? `?layout=${layout}` : ""}`,
-  getB30Layouts: () => request<B30LayoutInfo[]>("/api/images/b30_layouts"),
+  getB30Layouts: () => unwrap(client.GET("/api/images/b30_layouts")),
   createImport: (sourcePath: string, recursive: boolean) =>
-    request<ImportBatch>("/api/imports", {
-      method: "POST",
-      body: JSON.stringify({ source_path: sourcePath, recursive }),
-    }),
-  listImports: () => request<ImportBatch[]>("/api/imports"),
+    unwrap(
+      client.POST("/api/imports", {
+        body: { source_path: sourcePath, recursive },
+      }),
+    ),
+  listImports: () => unwrap(client.GET("/api/imports")),
   thumbUrl: (id: string) => `/api/images/${id}/thumb`,
   fileUrl: (id: string) => `/api/images/${id}/file`,
 };

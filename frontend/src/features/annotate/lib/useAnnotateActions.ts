@@ -1,7 +1,7 @@
 import { useRouter } from "vue-router";
 import { toast } from "vue-sonner";
 import type { Ref } from "vue";
-import { api, type QueueKind } from "@/api";
+import { api } from "@/api";
 import { useBusy } from "@/composables/useBusy";
 
 /**
@@ -13,7 +13,7 @@ import { useBusy } from "@/composables/useBusy";
  */
 export function useAnnotateActions<T extends string>(
   imageId: Ref<string>,
-  kind: QueueKind,
+  kind: "device" | "b30",
   guard: () => boolean,
 ) {
   const router = useRouter();
