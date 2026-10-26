@@ -56,24 +56,20 @@ export const CLEAR_STATUS_NAMES = ["TL", "TC", "FR", "PM", "EC", "HC"];
 
 const client = createClient<paths>();
 
-// FastAPI errors carry a string `detail`; request-validation errors an
-// array of objects
-function detailOf(error: unknown): string | null {
-  const detail = (error as { detail?: unknown } | null | undefined)?.detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return JSON.stringify(detail);
-  return null;
-}
-
-// openapi-fetch resolves non-2xx responses to `error` instead of
-// throwing; this restores the throw-on-failure contract the api object
-// and useRequest are built on
+// openapi-fetch resolves non-2xx to `error` instead of throwing; this
+// restores the throw-on-failure contract useRequest is built on.
+// Problem errors carry the explanation in `detail`, bare status
+// problems (e.g. unmatched /api paths) omit it.
 async function unwrap<T>(
-  request: Promise<{ data?: T; error?: unknown; response: Response }>,
+  request: Promise<{
+    data?: T;
+    error?: { detail?: string | null } | undefined;
+    response: Response;
+  }>,
 ): Promise<T> {
   const { data, error, response } = await request;
   if (error) {
-    throw new Error(detailOf(error) ?? response.statusText);
+    throw new Error(error.detail ?? response.statusText);
   }
   return data as T;
 }
