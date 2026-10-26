@@ -33,7 +33,7 @@
     "unocss": "^66.10.5",
     "vite": "^8.3.0",
     "vitest": "^5.0.5",
-    "vue-tsc": "^3.1.0"
+    "vue-tsc": "^3.3.13"
   },
   "packageManager": "pnpm@12.6.0"
 }
