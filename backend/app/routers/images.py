@@ -172,7 +172,7 @@ class PrefillOut(BaseModel):
 class B30ComponentPrefillOut(BaseModel):
     index: int
     song_id: str | None = None
-    song_id_candidates: list[dict[str, str | float]] = []
+    song_id_candidates: list[PrefillCandidate] = []
     rating_class: int | None = None
     rating_class_votes: list[int] | None = None
     score: int | None = None
