@@ -2,9 +2,9 @@
 and B30 annotation queues."""
 
 import logging
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
-from sqlalchemy import case, exists, func, or_, select
+from sqlalchemy import ColumnElement, case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..models import B30Component, B30Result, DeviceResult, Image
@@ -59,7 +59,9 @@ def b30_done_filter():
     )
 
 
-KIND_FILTERS = {
+QueueKind = Literal["device", "b30", "unclassified"]
+
+KIND_FILTERS: dict[QueueKind, ColumnElement[bool]] = {
     "device": exists(
         select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id)
     )
@@ -124,7 +126,7 @@ def b30_progress_map(session: Session, image_ids: list[str]) -> dict[str, B30Pro
     }
 
 
-def kind_of(device_row_exists: bool, b30_row_exists: bool) -> str:
+def kind_of(device_row_exists: bool, b30_row_exists: bool) -> QueueKind:
     if device_row_exists:
         return "device"
     if b30_row_exists:
@@ -159,7 +161,9 @@ def _b30_aspect_matches():
     )
 
 
-def next_unchecked(session: Session, current: Image, kind: str) -> str | None:
+def next_unchecked(
+    session: Session, current: Image, kind: Literal["device", "b30"]
+) -> str | None:
     """Id of the next unchecked image in queue order (newest first),
     starting after `current` and wrapping to the queue head; None when no
     unchecked image remains. The b30 queue also picks up images with no

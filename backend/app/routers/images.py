@@ -28,7 +28,7 @@ class ImageOut(BaseModel):
     height: int | None
     # classification by human-confirmed rows: which annotate flow this
     # image belongs to
-    kind: str  # "device" | "b30" | "unclassified"
+    kind: queues.QueueKind
     # device: None = not annotated yet; otherwise device_results.checked.
     # b30: whether every component the layout expects is checked.
     checked: bool | None
@@ -45,7 +45,7 @@ class ImageOut(BaseModel):
         image: Image,
         original_filename: str | None,
         checked: bool | None,
-        kind: str,
+        kind: queues.QueueKind,
         b30_progress: queues.B30Progress | None = None,
     ) -> "ImageOut":
         return cls(
@@ -190,27 +190,22 @@ def list_images(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1)] = 50,
     unchecked_only: bool = False,
-    kind: str | None = None,
-    hidden: str | None = None,
+    kind: queues.QueueKind | None = None,
+    hidden: Literal["only"] | None = None,
     session: Session = Depends(get_session),
 ) -> ImageListOut:
     """`hidden` absent: exclude hidden images; `hidden=only`: list only
     hidden ones."""
     limit = min(limit, 200)
-    if hidden is None:
-        hidden_condition = Image.hidden.is_(False)
-    elif hidden == "only":
-        hidden_condition = Image.hidden.is_(True)
-    else:
-        raise HTTPException(status_code=422, detail=f"invalid hidden: {hidden}")
+    hidden_condition = (
+        Image.hidden.is_(False) if hidden is None else Image.hidden.is_(True)
+    )
     device_sq = (
         select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id).exists()
     )
     b30_sq = select(B30Result.image_id).where(B30Result.image_id == Image.id).exists()
     conditions: list[ColumnElement[bool]] = [hidden_condition]
     if kind is not None:
-        if kind not in queues.KIND_FILTERS:
-            raise HTTPException(status_code=422, detail=f"unknown kind: {kind}")
         conditions.append(queues.KIND_FILTERS[kind])
     if unchecked_only:
         # a hybrid image presents as device (queues.kind_of); without
@@ -330,27 +325,27 @@ def set_image_hidden(
 
 @router.get("/{image_id}/next")
 def get_next_unchecked(
-    image_id: str, kind: str = "device", session: Session = Depends(get_session)
+    image_id: str,
+    kind: Literal["device", "b30"] = "device",
+    session: Session = Depends(get_session),
 ) -> NextImageOut:
     """Next unchecked image in queue order (newest first), starting after
     `image_id` and wrapping to the queue head; `{"id": None}` when no
     unchecked image remains."""
-    if kind not in ("device", "b30"):
-        raise HTTPException(status_code=422, detail=f"unknown kind: {kind}")
     current = _require_image(session, image_id)
     return NextImageOut(id=queues.next_unchecked(session, current, kind))
 
 
 @router.get("/{image_id}/prefill", response_model_exclude_unset=True)
 def get_prefill(
-    image_id: str, flow: str | None = None, session: Session = Depends(get_session)
+    image_id: str,
+    flow: Literal["device"] | None = None,
+    session: Session = Depends(get_session),
 ) -> PrefillOut:
     """Prefill for whichever flow the image probes as: the B30 layout id
     when it matches a B30 rendering, else the device OCR proposal.
     `flow=device` skips the probe and computes the device OCR proposal
     even for b30-probed images."""
-    if flow not in (None, "device"):
-        raise HTTPException(status_code=422, detail=f"unknown flow: {flow}")
     image = _require_image(session, image_id)
     relative_path = image.relative_path
     try:
