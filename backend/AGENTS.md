@@ -103,8 +103,10 @@ can be reset any time by deleting `data/odm.sqlite3`.
 - SQLAlchemy 2.0 `select()` style only.
 - Endpoints return Pydantic models, never bare dicts. A response model
   silently drops undeclared fields, so check field parity against the
-  exact-equality tests; new response fields must be mirrored in
-  `frontend/src/api.ts`.
+  exact-equality tests; after API changes, run
+  `uv run python backend/scripts/dump_openapi.py` to refresh the
+  committed `openapi.json` (a test fails while it is stale), then
+  `pnpm generate:api` in `frontend/` to regenerate the wire types.
 - Add or update characterization tests before changing behavior.
 - `Depends()` in parameter defaults is declaration syntax, not a
   mutable default: B008 and `reportCallInDefaultInitializer` are

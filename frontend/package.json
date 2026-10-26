@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "oxlint",
     "test": "vitest run",
+    "generate:api": "node scripts/generate-api.mjs && oxfmt --write src/api-schema.d.ts",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check ."
   },
@@ -24,6 +25,7 @@
     "@unocss/reset": "^66.10.5",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
+    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
     "typescript": "~5.9.0",
