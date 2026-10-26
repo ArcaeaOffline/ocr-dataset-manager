@@ -1,129 +1,54 @@
-export interface ImageItem {
-  id: string;
-  relative_path: string;
-  original_filename: string | null;
-  width: number | null;
-  height: number | null;
-  // "device" | "b30" | "unclassified"; for b30 images `checked` carries
-  // the derived "every component checked" state
-  kind: string;
-  checked: boolean | null;
-  // b30 images only: reviewed card count and the layout's expected card
-  // count; expected is null when the layout is missing or unknown
-  b30_checked_count: number | null;
-  b30_component_count: number | null;
-  // lifecycle flag: hidden images stay dedup anchors but appear in no queue
-  hidden: boolean;
-  created_at: string;
-}
+import type { components } from "./api-schema";
 
-export interface ImportBatch {
-  id: string;
-  source_path: string;
-  started_at: string;
-  finished_at: string | null;
-  file_count: number;
-  imported_count: number;
-  skipped_count: number;
-  failed_count: number;
-}
+type Schemas = components["schemas"];
 
-export interface Candidate {
-  image_id: string;
-  confidence: number;
-}
+/**
+ * A stored screenshot. `checked` is null when not annotated yet; on b30
+ * images it is the derived "every expected component checked" state and
+ * `b30_checked_count` / `b30_component_count` carry its per-card
+ * progress (the count is null when the layout is unknown). Hidden
+ * images stay dedup anchors but appear in no queue.
+ */
+export type ImageItem = Schemas["ImageOut"];
 
-export interface Prefill {
-  rois_type: number | null;
-  score?: number | null;
-  pure?: number | null;
-  far?: number | null;
-  lost?: number | null;
-  max_recall?: number | null;
-  rating_class?: number | null;
-  rating_class_votes?: number[];
-  clear_status?: number | null;
-  clear_status_votes?: number[];
-  high_score?: number | null;
-  high_score_delta?: number | null;
-  pure_shiny?: number | null;
-  pure_early?: number | null;
-  pure_late?: number | null;
-  far_early?: number | null;
-  far_late?: number | null;
-  song_id?: string | null;
-  song_id_candidates?: Candidate[];
-  partner_id?: string | null;
-  partner_id_candidates?: Candidate[];
-}
+export type ImportBatch = Schemas["ImportBatchOut"];
+
+export type Candidate = Schemas["PrefillCandidate"];
+
+export type Prefill = Schemas["PrefillPayload"];
+
+// saved results always serialize every field; the schema keeps them
+// optional only because the same model doubles as the partial PUT body
+export type DeviceResult = Required<Schemas["DeviceResultOut"]>;
 
 export type ResultFields = Omit<DeviceResult, "image_id" | "updated_at">;
 
-export interface B30ComponentFields {
-  index: number;
-  song_id: string | null;
-  rating_class: number | null;
-  score: number | null;
-  pure: number | null;
-  far: number | null;
-  lost: number | null;
-  pure_shiny: number | null;
-  clear_status: number | null;
-  checked: boolean;
-}
+// as with DeviceResult: saved components always carry every field
+export type B30ComponentFields = Required<Schemas["B30ComponentIn"]>;
 
-export interface B30Result {
-  layout: string | null;
+export type B30Result = Omit<Schemas["B30ResultOut"], "components"> & {
   components: B30ComponentFields[];
-  updated_at: string;
-}
+};
 
-export interface B30ComponentPrefill {
-  index: number;
-  song_id: string | null;
-  song_id_candidates: Candidate[];
-  rating_class: number | null;
-  rating_class_votes: number[] | null;
-  score: number | null;
-  pure: number | null;
-  far: number | null;
-  lost: number | null;
-  pure_shiny: number | null;
-  clear_status: number | null;
-}
+// the card OCR pass always emits every field
+export type B30ComponentPrefill = Required<Schemas["B30ComponentPrefillOut"]>;
 
-// GET /{id}/prefill dispatches on the probed renderer
+// GET /{id}/prefill serializes with exclude_unset: the b30 variant
+// carries only `layout`, the device variant only `prefill` — a presence
+// split the schema cannot express, so the union is stated here
 export type PrefillResponse =
   | { kind: "b30"; layout: string }
   | { kind: "device"; prefill: Prefill };
 
-export interface B30LayoutInfo {
-  id: string;
-  component_count: number;
-}
+export type B30LayoutInfo = Schemas["B30LayoutOut"];
 
-export interface DeviceResult {
-  image_id: string;
-  rois_type: number | null;
-  song_id: string | null;
-  partner_id: string | null;
-  rating_class: number | null;
-  clear_status: number | null;
-  score: number | null;
-  pure: number | null;
-  far: number | null;
-  lost: number | null;
-  max_recall: number | null;
-  high_score: number | null;
-  high_score_delta: number | null;
-  pure_shiny: number | null;
-  pure_early: number | null;
-  pure_late: number | null;
-  far_early: number | null;
-  far_late: number | null;
-  checked: boolean;
-  updated_at: string;
-}
+export type QueueKind = ImageItem["kind"];
+
+export type SongEntry = Schemas["SongOut"];
+
+/** Partner letter id and display name; `name` is null when the game's
+ * characters file has no entry for the id. */
+export type PartnerEntry = Schemas["PartnerOut"];
 
 export const RATING_CLASS_NAMES = ["PST", "PRS", "FTR", "BYD", "ETR"];
 export const CLEAR_STATUS_NAMES = ["TL", "TC", "FR", "PM", "EC", "HC"];
@@ -138,17 +63,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(body?.detail ?? res.statusText);
   }
   return res.json();
-}
-
-export interface SongEntry {
-  id: string;
-  title: string;
-}
-
-export interface PartnerEntry {
-  id: string;
-  /** letter id from the game's characters file; null when the mapping is absent */
-  name: string | null;
 }
 
 const catalogCache: Record<"songs" | "partners", Promise<unknown> | null> = {
@@ -171,8 +85,6 @@ export const catalog = {
   partnerIconUrl: (id: string) => `/api/catalog/partners/${id}/icon`,
 };
 
-export type QueueKind = "device" | "b30" | "unclassified";
-
 export const api = {
   listImages: (
     uncheckedOnly: boolean,
@@ -181,7 +93,7 @@ export const api = {
     kind: QueueKind | null = null,
     hiddenOnly = false,
   ) =>
-    request<{ total: number; items: ImageItem[] }>(
+    request<Schemas["ImageListOut"]>(
       `/api/images?unchecked_only=${uncheckedOnly}&offset=${offset}&limit=${limit}${kind ? `&kind=${kind}` : ""}${hiddenOnly ? "&hidden=only" : ""}`,
     ),
   getImage: (id: string) => request<ImageItem>(`/api/images/${id}`),
