@@ -90,7 +90,11 @@ def list_partners() -> list[PartnerOut]:
     return [PartnerOut(id=i, name=names.get(i.removesuffix("u"))) for i in ids]
 
 
-@router.get("/partners/{partner_id}/icon")
+@router.get(
+    "/partners/{partner_id}/icon",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/png": {}, "image/jpeg": {}}}},
+)
 def partner_icon(partner_id: str) -> FileResponse:
     if not _PARTNER_ID_RE.match(partner_id):
         raise HTTPException(status_code=404, detail="unknown partner")

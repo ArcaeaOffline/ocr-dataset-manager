@@ -387,7 +387,11 @@ def get_b30_component_prefill(
     return B30ComponentPrefillOut.model_validate(dataclasses.asdict(result))
 
 
-@router.get("/{image_id}/b30_card/{component_index}")
+@router.get(
+    "/{image_id}/b30_card/{component_index}",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/jpeg": {}}}},
+)
 def get_b30_card(
     image_id: str,
     component_index: int,
@@ -492,7 +496,11 @@ def save_result(
     return _device_result_out(result)
 
 
-@router.get("/{image_id}/thumb")
+@router.get(
+    "/{image_id}/thumb",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/jpeg": {}}}},
+)
 def get_thumbnail(image_id: str) -> FileResponse:
     path = storage.thumb_path_for(image_id)
     if not path.exists():
@@ -500,7 +508,11 @@ def get_thumbnail(image_id: str) -> FileResponse:
     return FileResponse(path, media_type="image/jpeg", headers=_CACHE_IMMUTABLE)
 
 
-@router.get("/{image_id}/file")
+@router.get(
+    "/{image_id}/file",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/*": {}}}},
+)
 def get_original(
     image_id: str, session: Session = Depends(get_session)
 ) -> FileResponse:
