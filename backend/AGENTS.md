@@ -6,7 +6,7 @@ For general project conventions, see root AGENTS.md.
 ## Layout
 
 ```
-app/ocr/        text provider (RapidOCR), custom ROIs, layout probe
+app/ocr/        text provider (RapidOCR), layout probe
 app/ocr/b30/    B30/B50 bot layout definitions and card recognizers
 app/services/   import pipeline, prefill cache, queue queries
 app/routers/    HTTP surface
@@ -51,10 +51,9 @@ can be reset any time by deleting `data/odm.sqlite3`.
 
 - **Recognition chain**: `DeviceRoisAutoSelector` (T1/T2 detection) →
   per-ROI OCR via `RapidOcrTextProvider` → `ImageHashDatabaseIdProvider`
-  (ihdb) for song/partner → color-mask voting for enums. Custom ROIs for
-  fields core-ocr does not cover live in `app/ocr/custom_rois.py`
-  and follow core-ocr's factor-based anchoring (T1 is scaled against
-  h/720, T2 against h/1080).
+  (ihdb) for song/partner → color-mask voting for enums. All device
+  roi windows, including high score / shiny / early-late, come from
+  core-ocr's packaged layout data.
 - **Small single-line ROIs must skip detection**: PaddleOCR det fails or
   garbles them; use `RapidOcrTextProvider.result_rec_only()` (replicate
   pad + 2x upscale + recognition only).

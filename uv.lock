@@ -74,16 +74,16 @@ wheels = [
 
 [[package]]
 name = "arcaea-offline-ocr"
-version = "0.1.0b2"
+version = "0.1.1b0"
 source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/" }
 dependencies = [
     { name = "onnxruntime" },
     { name = "opencv-python-headless" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/df/a4/11e0dcdee6f89a52e5f5796113592e01e899442883217c8eafadad8a5a07/arcaea_offline_ocr-0.1.0b2.tar.gz", hash = "sha256:32e1ce511f8484b18266730368a3b7e731fc5ae52b8f365d897e30fc5cff2dfe", size = 58911, upload-time = "2026-10-15T01:32:20.44Z" }
+sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/d1/74/bcdde3904ecf45ffa6363457161cea65107d5d8f8b09de1fbef28c9a050d/arcaea_offline_ocr-0.1.1b0.tar.gz", hash = "sha256:b3589d23ea265e2c9a49d50ff05e9116a238d7f1b4493909586f6a95aabf92d9", size = 64333, upload-time = "2026-10-29T17:55:49.121Z" }
 wheels = [
-    { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/ec/34/0114714b3ea28c07c24d169d21f6f8146f401febcfb662675f31791d7327/arcaea_offline_ocr-0.1.0b2-py3-none-any.whl", hash = "sha256:360c9cbe205229c433dabb1fee25c05da978656356268abc284f1ebc3baa5261", size = 41704, upload-time = "2026-10-15T01:32:19.245Z" },
+    { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/63/48/eadaaf3741eafb37662748bb64c8ad3dbb7f8cbd3ac14ad842d271995d1a/arcaea_offline_ocr-0.1.1b0-py3-none-any.whl", hash = "sha256:b98ee904afd4c06c403e94792ea316985d1ade7d99dafe1dfa099ff32f6eab2d", size = 43286, upload-time = "2026-10-29T17:55:47.886Z" },
 ]
 
 [[package]]
@@ -755,7 +755,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13" },
-    { name = "arcaea-offline-ocr", specifier = ">=0.1.0b2" },
+    { name = "arcaea-offline-ocr", specifier = ">=0.1.1b0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "fastapi-problem-details", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2" },

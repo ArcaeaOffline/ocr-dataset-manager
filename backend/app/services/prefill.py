@@ -16,13 +16,16 @@ from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
 import cv2
 import numpy as np
 from arcaea_offline_ocr.crop import crop_xywh
+from arcaea_offline_ocr.scenarios.device.rois.auto import (
+    DeviceRoisAutoT1,
+    DeviceRoisAutoT2,
+)
 from cv2.typing import MatLike
 
 from .. import storage
 from ..config import IHDB_PATH
 from ..ocr.b30 import B30LayoutOcr, ComponentOcr, make_recognizer
 from ..ocr.b30.providers import OcrProviders
-from ..ocr.custom_rois import CustomRoisT1, CustomRoisT2
 from ..ocr.layout_probe import DEVICE, probe
 from ..ocr.parsing import parse_int
 from ..ocr.ranking import rank_candidates
@@ -175,12 +178,12 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
             return {"rois_type": None}
         if selector_result is DeviceRoisAutoSelectorResult.T1:
             rois_type = 0
-            rois = CustomRoisT1(cropped.shape[1], cropped.shape[0])
+            rois = DeviceRoisAutoT1(cropped.shape[1], cropped.shape[0])
             masker = DeviceRoisMaskerAutoT1()
         else:
             # only T1/T2 remain after the UNKNOWN early return
             rois_type = 1
-            rois = CustomRoisT2(cropped.shape[1], cropped.shape[0])
+            rois = DeviceRoisAutoT2(cropped.shape[1], cropped.shape[0])
             masker = DeviceRoisMaskerAutoT2()
 
         extractor = DeviceRoisExtractor(cropped, rois)
