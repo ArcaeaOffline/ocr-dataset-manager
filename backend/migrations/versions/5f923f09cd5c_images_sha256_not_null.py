@@ -20,9 +20,9 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # SQLite cannot ALTER COLUMN; batch mode recreates the table (FKs are
-    # off by default in alembic's sqlite connections, so dropping the old
-    # table is safe)
+    # SQLite cannot ALTER COLUMN. Batch mode recreates the table, and
+    # dropping the old one is safe because alembic's sqlite connections
+    # leave FKs off by default.
     with op.batch_alter_table("images") as batch_op:
         batch_op.alter_column(
             "sha256", existing_type=sa.VARCHAR(length=64), nullable=False

@@ -2,7 +2,7 @@
 
 The frontend generates its wire types from that file, and
 `tests/test_openapi_spec.py` fails when the committed file drifts from
-the app's current schema; rerun this script after API changes.
+the app's current schema. Rerun this script after API changes.
 """
 
 import json

@@ -2,7 +2,7 @@
 
 Song data comes from the game's songlist file, partner letter ids from
 the game's characters file, and partner icons from the extracted asset
-directory; all live under data/.
+directory. All live under data/.
 
 Partner ids are the icon filename stems, which is the same labeling the
 ihdb was built with, so candidates and icons always align.
@@ -39,7 +39,7 @@ class PartnerOut(BaseModel):
 
 @lru_cache(maxsize=4)
 def _parse_songlist(path: Path, _mtime: int) -> list[dict[str, str]]:
-    # _mtime is unused in the body; it is the cache key that triggers a
+    # _mtime is unused in the body. It is the cache key that triggers a
     # re-parse when the songlist file changes on disk
     data = json.loads(path.read_text(encoding="utf-8"))
     songs: list[dict[str, str]] = []
@@ -63,7 +63,7 @@ def list_songs() -> list[SongOut]:
 
 @lru_cache(maxsize=4)
 def _parse_characters(path: Path, _mtime: int) -> dict[str, str]:
-    # _mtime is unused in the body; it is the cache key that triggers a
+    # _mtime is unused in the body. It is the cache key that triggers a
     # re-parse when the characters file changes on disk
     data = json.loads(path.read_text(encoding="utf-8"))
     return {

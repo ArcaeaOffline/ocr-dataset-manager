@@ -13,7 +13,7 @@ from .db import init_db
 from .routers import catalog, images, imports
 
 # Windows seeds mimetypes from the registry, where .js can map to
-# text/plain; browsers refuse ES module scripts with a non-JS MIME.
+# text/plain. Browsers refuse ES module scripts with a non-JS MIME.
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
@@ -38,7 +38,7 @@ app = FastAPI(
     generate_unique_id_function=_operation_id,
 )
 
-# errors become RFC 9457 problem+json; the library also injects the
+# errors become RFC 9457 problem+json. The library also injects the
 # schema-wide `default` response, which is why the spec has no
 # HTTPValidationError documentation
 init_problem_details(app)
@@ -54,7 +54,7 @@ def health() -> dict[str, str]:
 
 
 def register_spa(app: FastAPI, dist: Path) -> None:
-    """Serve the built frontend from `dist`; non-API paths that match no
+    """Serve the built frontend from `dist`. Non-API paths that match no
     file fall back to index.html (vue-router history mode). Call only
     after every API route is registered: the catch-all swallows
     whatever is registered later."""

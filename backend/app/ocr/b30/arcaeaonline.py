@@ -4,7 +4,7 @@ Card fields (canonical card is 330x250): rank badge top-left, level
 diamond top-right, jacket center, play potential and grade on the left
 column, score strip at the bottom with the clear letter badge to its
 right, title below the strip. The level diamond keeps one color across
-difficulties, so cards render no rating class; nor any P/F/L counters.
+difficulties, so cards render no rating class or P/F/L counters.
 The score strip is white text over the jacket art, so detection-less
 recognition is required (detection hallucinates digits from jacket
 texture)."""

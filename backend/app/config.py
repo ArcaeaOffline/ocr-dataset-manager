@@ -1,12 +1,12 @@
 """Path and server settings.
 
 Configuration semantics — precedence, path bases, the anchor
-directory — live in the README (Configuration); this module only
+directory — live in the README (Configuration). This module only
 discovers, resolves and snapshots them.
 
 The module-level constants are a snapshot of the resolved settings
 taken at import (`app.db` binds its engine and the test harness relies
-on this snapshot); `apply_settings` re-snapshots them, and the CLI
+on this snapshot). `apply_settings` re-snapshots them, and the CLI
 entry point is its only caller.
 """
 
@@ -31,11 +31,11 @@ _PATH_KEYS = ("data_dir", "ihdb_path")
 
 
 class ConfigError(Exception):
-    """Invalid or missing configuration; the message is user-facing."""
+    """Invalid or missing configuration. The message is user-facing."""
 
 
 class _SettingsModel(BaseModel):
-    """Validated merged values; string paths arrive already resolved
+    """Validated merged values. String paths arrive already resolved
     against their source's base directory."""
 
     data_dir: Path | None = None

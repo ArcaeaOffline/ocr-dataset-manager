@@ -1,6 +1,6 @@
 import type { ResultFields } from "@/api";
 
-// vote counts are close when the top two differ by at most one; surface
+// vote counts are close when the top two differ by at most one. Surface
 // that so the annotator double-checks an ambiguous prefill
 export function voteHint(votes: number[] | undefined | null): string | null {
   if (votes == null || votes.length < 2) return null;
@@ -13,7 +13,7 @@ export function voteHint(votes: number[] | undefined | null): string | null {
   return null;
 }
 
-// screenshot-internal consistency warnings; no chart metadata involved.
+// screenshot-internal consistency warnings. No chart metadata involved.
 // absent values (null) never warn on their own
 export function computeWarnings(r: ResultFields): string[] {
   const warnings: string[] = [];

@@ -23,7 +23,7 @@ export type RequestKey =
 export interface UseRequestOptions<T> {
   /** Value of `data` before the first successful load. */
   initialData: T;
-  /** Fetch on setup; defaults to true. */
+  /** Fetch on setup. Defaults to true. */
   immediate?: boolean;
   onError?: (error: Error) => void;
 }

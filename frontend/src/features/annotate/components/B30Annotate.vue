@@ -73,7 +73,7 @@ const { form, prefilled, markPrefilled } = useFieldSources(
   reactive<B30ComponentFields>(emptyComponent(0)),
 );
 
-// fields that can carry a prefill mark; index is not a rendered field and
+// fields that can carry a prefill mark. Index is not a rendered field and
 // checked has no proposal
 const sourceKeys = Object.keys(emptyComponent(0)).filter(
   (key) => key !== "index" && key !== "checked",
@@ -88,7 +88,7 @@ const layoutOptions = computed(() => [
   ...layouts.value.map((l) => ({ value: l.id, label: l.id })),
 ]);
 const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({ value: i, label }));
-// bots render all six st3 clear states; EC/HC never appear on device screenshots
+// bots render all six st3 clear states. EC/HC never appear on device screenshots
 const clearStatusOptions = CLEAR_STATUS_NAMES.map((label, i) => ({ value: i, label }));
 
 const componentCount = computed(() => {
@@ -97,7 +97,7 @@ const componentCount = computed(() => {
 });
 
 const filename = ref<string | null>(null);
-// kind === "device" means a device_results row exists; any b30 save on
+// kind === "device" means a device_results row exists. Any b30 save on
 // such an image replaces the device annotation (one kind per image)
 const hasDeviceRow = ref(false);
 const songs = ref<SongEntry[]>([]);
@@ -158,7 +158,7 @@ function loadCard(index: number) {
 async function fetchCardPrefill(id: string, index: number) {
   const existing = cardData[index];
   if (existing?.prefill != null || existing?.loading) return;
-  // without a layout there is nothing to OCR against; the card area
+  // without a layout there is nothing to OCR against. The card area
   // shows a hint instead
   if (layout.value == null) return;
   const fetchLayout = layout.value;
@@ -188,7 +188,7 @@ watch(
     const [prevId] = previous ?? [null];
     if (prevId !== id) {
       for (const key of Object.keys(cardData)) delete cardData[Number(key)];
-      // resetting currentIndex re-triggers this watch; the loading flag
+      // resetting currentIndex re-triggers this watch. The loading flag
       // in fetchCardPrefill keeps the second run from fetching again
       index = 0;
       currentIndex.value = 0;
@@ -203,7 +203,7 @@ watch(
 async function onLayoutChange(value: string | null) {
   if (value === layout.value) return;
   if (value == null) {
-    // 未知: local-only switch; saved rows stay on the server, and saving
+    // 未知: local-only switch. Saved rows stay on the server, and saving
     // requires a layout anyway
     layout.value = null;
     for (const key of Object.keys(cardData)) {
@@ -220,7 +220,7 @@ async function onLayoutChange(value: string | null) {
   await applyLayoutSwitch(value);
 }
 
-// a layout switch awaiting confirmation; non-null opens the confirm dialog
+// a layout switch awaiting confirmation. Non-null opens the confirm dialog
 const pendingLayout = ref<string | null>(null);
 const switchingLayout = ref(false);
 
@@ -251,7 +251,7 @@ async function applyLayoutSwitch(value: string) {
   cardReady.value = false;
   switchingLayout.value = true;
   try {
-    // persist the new layout immediately; the backend drops the old
+    // persist the new layout immediately. The backend drops the old
     // layout's component rows when a PUT arrives with a different layout,
     // so the server state matches the UI right away
     data.value = await api.saveB30Result(imageId.value, value, []);
@@ -283,7 +283,7 @@ function nextCard() {
 }
 
 // saving a card on a device-annotated image deletes its device row (one
-// kind per image); the first such save needs a confirmation
+// kind per image). The first such save needs a confirmation
 const {
   pending: crossKindPending,
   run: runCrossKindGuarded,
@@ -302,7 +302,7 @@ async function save(checked: boolean): Promise<boolean> {
     const saved = await api.saveB30Result(imageId.value, layoutId, [{ ...form }]);
     const updated = saved.components.find((c) => c.index === form.index) ?? null;
     cardData[form.index] = { ...cardData[form.index], saved: updated };
-    // the queue's checked state is derived from the saved rows; data is a
+    // the queue's checked state is derived from the saved rows. Data is a
     // shallow ref, so the components list must be replaced wholesale
     if (data.value != null) {
       data.value = {

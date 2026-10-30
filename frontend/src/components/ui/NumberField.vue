@@ -2,7 +2,7 @@
 const props = defineProps<{
   label: string;
   modelValue: number | null;
-  /** the value is the machine prefill proposal; shows a marker by the label */
+  /** the value is the machine prefill proposal. Shows a marker by the label */
   prefilled?: boolean;
 }>();
 

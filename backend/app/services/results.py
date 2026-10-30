@@ -3,10 +3,10 @@
 A screenshot is either a device result screen or a bot B30/B50
 rendering, never both: writing one kind's rows replaces the other
 kind's in the same transaction. The annotate UI confirms before the
-first cross-kind save; this module is the mechanical backstop.
+first cross-kind save. This module is the mechanical backstop.
 
 Values arrive as plain mappings (the request models dumped by the
-routers), keyed by the ORM column names they mirror; a component
+routers), keyed by the ORM column names they mirror. A component
 mapping additionally carries `index`."""
 
 from collections.abc import Mapping
@@ -20,7 +20,7 @@ from ..models import B30Component, B30Result, DeviceResult
 def save_device_result(
     session: Session, image_id: str, values: Mapping[str, object]
 ) -> DeviceResult:
-    """Upsert the device_results row for `image_id`; every B30 row on
+    """Upsert the device_results row for `image_id`. Every B30 row on
     the image (layout and cards) is dropped."""
     result = session.get(DeviceResult, image_id)
     if result is None:
@@ -39,7 +39,7 @@ def save_b30_result(
     layout: str | None,
     components: list[Mapping[str, object]],
 ) -> None:
-    """Upsert the b30_results row and the given component rows; component
+    """Upsert the b30_results row and the given component rows. Component
     rows the payload omits stay untouched. Switching to a different
     non-null layout clears the old layout's components (stale rows would
     count toward the new layout's completion). The device_results row,

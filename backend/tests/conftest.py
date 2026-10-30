@@ -27,7 +27,7 @@ _DATA_DIR = Path(tempfile.mkdtemp(prefix="odm-tests-"))
 os.environ["ODM_DATA_DIR"] = _DATA_DIR.as_posix()
 os.environ["ODM_DATABASE_URL"] = f"sqlite:///{(_DATA_DIR / 'odm.sqlite3').as_posix()}"
 
-# the real-OCR smoke needs an ihdb in the data dir; seed one from the
+# the real-OCR smoke needs an ihdb in the data dir. Seed one from the
 # repository's runtime copy so the smoke runs on machines that have it
 # and skips otherwise (CI)
 if "ODM_IHDB_PATH" not in os.environ:
@@ -50,7 +50,7 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture(autouse=True)
 def isolated_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Fresh database rows, prefill caches and data files per test; the
+    """Fresh database rows, prefill caches and data files per test. The
     import thread's queue warm-up never runs real OCR."""
     from app.services import prefill
 
@@ -83,7 +83,7 @@ T = TypeVar("T")
 
 @pytest.fixture
 def seed() -> SimpleNamespace:
-    """Row factories writing straight through SessionLocal; each call
+    """Row factories writing straight through SessionLocal. Each call
     commits and returns the inserted ORM row."""
     from app.db import SessionLocal
     from app.models import B30Component, B30Result, DeviceResult, Image

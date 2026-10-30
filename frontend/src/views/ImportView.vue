@@ -14,7 +14,7 @@ async function refresh() {
   try {
     batches.value = await api.listImports();
   } catch {
-    // transient backend downtime; keep polling
+    // transient backend downtime. Keep polling
   }
 }
 
@@ -50,7 +50,7 @@ onUnmounted(() => {
   <div class="py-4">
     <section class="rounded border border-border bg-card p-4">
       <h2 class="mb-3 text-sm font-semibold">从文件夹导入</h2>
-      <!-- label wraps to its own row on mobile; one row again from sm up -->
+      <!-- label wraps to its own row on mobile. One row again from sm up -->
       <div class="flex flex-wrap items-end gap-3">
         <label class="block w-full sm:w-auto sm:flex-1">
           <span class="field-label">服务器端路径</span>

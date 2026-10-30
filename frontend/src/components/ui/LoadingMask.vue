@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// the parent element needs `relative`; the mask is absolutely positioned
+// the parent element needs `relative`. The mask is absolutely positioned
 // over its full box
 const props = withDefaults(
   defineProps<{

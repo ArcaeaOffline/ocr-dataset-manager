@@ -253,7 +253,7 @@
           "images"
         ],
         "summary": "List Images",
-        "description": "`hidden` absent: exclude hidden images; `hidden=only`: list only\nhidden ones.",
+        "description": "`hidden` absent: exclude hidden images. `hidden=only`: list only\nhidden ones.",
         "operationId": "listImages",
         "parameters": [
           {
@@ -561,7 +561,7 @@
           "images"
         ],
         "summary": "Set Image Hidden",
-        "description": "Hiding is reversible and idempotent; the row stays as a sha256\ndedup anchor, so re-importing the same file still counts as skipped.",
+        "description": "Hiding is reversible and idempotent. The row stays as a sha256\ndedup anchor, so re-importing the same file still counts as skipped.",
         "operationId": "setImageHidden",
         "parameters": [
           {
@@ -656,7 +656,7 @@
           "images"
         ],
         "summary": "Get Next Unchecked",
-        "description": "Next unchecked image in queue order (newest first), starting after\n`image_id` and wrapping to the queue head; `{\"id\": None}` when no\nunchecked image remains.",
+        "description": "Next unchecked image in queue order (newest first), starting after\n`image_id` and wrapping to the queue head. `{\"id\": None}` when no\nunchecked image remains.",
         "operationId": "getNextUnchecked",
         "parameters": [
           {
@@ -857,7 +857,7 @@
           "images"
         ],
         "summary": "Get B30 Component Prefill",
-        "description": "OCR proposal for one card; 422 when the image does not probe as a\nsupported B30 layout. `layout` overrides the probed layout.",
+        "description": "OCR proposal for one card. 422 when the image does not probe as a\nsupported B30 layout. `layout` overrides the probed layout.",
         "operationId": "getB30ComponentPrefill",
         "parameters": [
           {
@@ -1256,7 +1256,7 @@
           "images"
         ],
         "summary": "Get B30 Result",
-        "description": "Saved B30 annotation; `None` (HTTP 200) means not annotated yet.",
+        "description": "Saved B30 annotation. `None` (HTTP 200) means not annotated yet.",
         "operationId": "getB30Result",
         "parameters": [
           {
@@ -1441,7 +1441,7 @@
           "images"
         ],
         "summary": "Get Result",
-        "description": "Saved annotation; `None` (HTTP 200) means not annotated yet.",
+        "description": "Saved annotation. `None` (HTTP 200) means not annotated yet.",
         "operationId": "getResult",
         "parameters": [
           {

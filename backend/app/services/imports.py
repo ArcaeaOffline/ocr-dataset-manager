@@ -1,5 +1,5 @@
 """Folder import pipeline: scan -> sha256 dedup -> copy -> thumbnail +
-perceptual hash. Runs in a daemon thread; progress lives in the
+perceptual hash. Runs in a daemon thread. Progress lives in the
 import_batches row and is meant to be polled over the API."""
 
 import logging
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
-# stdlib uuid7 exists on 3.14+; uuid4 is the fallback there
+# stdlib uuid7 exists on 3.14+. uuid4 is the fallback there
 _uuid7 = getattr(uuid, "uuid7", None)
 
 
@@ -72,7 +72,7 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
                 imported_one = _import_one(session, batch, file)
                 session.commit()
             except IntegrityError:
-                # a concurrent batch inserted the same content first; the
+                # a concurrent batch inserted the same content first. The
                 # unique index on sha256 turns the race into a skip
                 session.rollback()
                 batch.skipped_count += 1
@@ -97,7 +97,7 @@ def _run(batch_id: str, root: Path, recursive: bool) -> None:
     from . import prefill  # noqa: PLC0415
 
     # the prefill LRU only holds prefill.CAP entries, so warming more than
-    # the head of the annotation queue is wasted OCR work; hidden images
+    # the head of the annotation queue is wasted OCR work. Hidden images
     # belong to no queue
     with SessionLocal() as session:
         queue_head = session.execute(

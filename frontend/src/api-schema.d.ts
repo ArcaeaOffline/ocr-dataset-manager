@@ -43,7 +43,7 @@ export interface paths {
     };
     /**
      * List Images
-     * @description `hidden` absent: exclude hidden images; `hidden=only`: list only
+     * @description `hidden` absent: exclude hidden images. `hidden=only`: list only
      *     hidden ones.
      */
     get: operations["listImages"];
@@ -102,7 +102,7 @@ export interface paths {
     get?: never;
     /**
      * Set Image Hidden
-     * @description Hiding is reversible and idempotent; the row stays as a sha256
+     * @description Hiding is reversible and idempotent. The row stays as a sha256
      *     dedup anchor, so re-importing the same file still counts as skipped.
      */
     put: operations["setImageHidden"];
@@ -123,7 +123,7 @@ export interface paths {
     /**
      * Get Next Unchecked
      * @description Next unchecked image in queue order (newest first), starting after
-     *     `image_id` and wrapping to the queue head; `{"id": None}` when no
+     *     `image_id` and wrapping to the queue head. `{"id": None}` when no
      *     unchecked image remains.
      */
     get: operations["getNextUnchecked"];
@@ -167,7 +167,7 @@ export interface paths {
     };
     /**
      * Get B30 Component Prefill
-     * @description OCR proposal for one card; 422 when the image does not probe as a
+     * @description OCR proposal for one card. 422 when the image does not probe as a
      *     supported B30 layout. `layout` overrides the probed layout.
      */
     get: operations["getB30ComponentPrefill"];
@@ -248,7 +248,7 @@ export interface paths {
     };
     /**
      * Get B30 Result
-     * @description Saved B30 annotation; `None` (HTTP 200) means not annotated yet.
+     * @description Saved B30 annotation. `None` (HTTP 200) means not annotated yet.
      */
     get: operations["getB30Result"];
     /** Save B30 Result */
@@ -269,7 +269,7 @@ export interface paths {
     };
     /**
      * Get Result
-     * @description Saved annotation; `None` (HTTP 200) means not annotated yet.
+     * @description Saved annotation. `None` (HTTP 200) means not annotated yet.
      */
     get: operations["getResult"];
     /** Save Result */

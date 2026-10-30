@@ -1,5 +1,5 @@
 """resolve_settings(): source precedence, relative-path bases, and
-validation failures. Pure function tests; the module-level snapshot is
+validation failures. Pure function tests. The module-level snapshot is
 not touched."""
 
 from pathlib import Path

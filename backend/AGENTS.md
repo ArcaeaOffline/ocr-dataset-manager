@@ -25,10 +25,10 @@ uv run basedpyright backend         # type check (config in root pyproject.toml)
 # backend dev server
 cd backend && uv run uvicorn app.main:app --port 8199
 
-# single-process mode (serves the built frontend; --no-open: headless)
+# single-process mode serving the built frontend. --no-open: headless
 uv run odm --no-open
 
-# tests (from backend/); the real-OCR smoke is part of the default run
+# tests (from backend/). The real-OCR smoke is part of the default run
 # and skips itself where no ihdb is present (CI)
 uv run pytest
 uv run pytest -m "not slow"  # quick run without the real-OCR smoke
@@ -44,7 +44,7 @@ ODM_DATABASE_URL="sqlite:///./scratch.db" uv run alembic revision --autogenerate
 rm scratch.db
 ```
 
-Migrations apply automatically when the backend starts; the dev database
+Migrations apply automatically when the backend starts. The dev database
 can be reset any time by deleting `data/odm.sqlite3`.
 
 ## Architecture notes
@@ -55,7 +55,7 @@ can be reset any time by deleting `data/odm.sqlite3`.
   roi windows, including high score / shiny / early-late, come from
   core-ocr's packaged layout data.
 - **Small single-line ROIs must skip detection**: PaddleOCR det fails or
-  garbles them; use `RapidOcrTextProvider.result_rec_only()` (replicate
+  garbles them. Use `RapidOcrTextProvider.result_rec_only()` (replicate
   pad + 2x upscale + recognition only).
 - **Annotate view crops**: the device flow displays the black-edge-cropped
   screenshot (`/images/{id}/cropped`) and CSS-crops each field window out
@@ -75,42 +75,41 @@ can be reset any time by deleting `data/odm.sqlite3`.
   one kind: `services/results.py` drops the other kind's rows in the
   same transaction on every save, and the annotate UI confirms before
   the first cross-kind save. A B30 image counts as fully reviewed when
-  every component its layout expects has a checked row; there is no
+  every component its layout expects has a checked row. There is no
   image-level checked flag.
 - **B30/B50 layouts** live in `app/ocr/b30/`: each `B30Layout` wraps
   core-ocr's `CardLayout`, an explicit card origin list plus card-local
   field windows, factor-scaled by `width / canvas_width`. Layout data is
   JSON in `app/ocr/b30/layouts/`, except chieri_v4 which loads core-ocr's
-  packaged copy. `layout_probe.py` classifies
-  a screenshot by aspect ratio plus background-independent structural
-  checks; the probe is only a prefill proposal and never persists. The
-  UI mirrors that: a manual flow switch and layout selector in the
-  image area override the probe per view (ephemeral UI state — queue
-  kind still derives from saved rows), and the endpoints take explicit
-  overrides (`/b30_card`, `/b30_prefill` accept `?layout=`; `/prefill`
-  accepts `?flow=device` to compute the device proposal for a
-  b30-probed image).
+  packaged copy. `layout_probe.py` classifies a screenshot by aspect
+  ratio plus background-independent structural checks. The probe is only
+  a prefill proposal and never persists. The UI mirrors that: a manual
+  flow switch and layout selector in the image area override the probe
+  per view as ephemeral UI state, while the queue kind still derives
+  from saved rows. The endpoints take explicit overrides: `/b30_card`
+  and `/b30_prefill` accept `?layout=`, and `/prefill` accepts
+  `?flow=device` to compute the device proposal for a b30-probed image.
   `chieri_v4` delegates card cutting and OCR to core-ocr's
-  `ChieriBotV4Best30Scenario`; yurisaki and arcaeaonline have local
+  `ChieriBotV4Best30Scenario`. Yurisaki and arcaeaonline have local
   recognizers. Card OCR is computed on request per card (~0.4s) and is
   never bulk-warmed. Clear-type badges map onto the st3 clearType values
-  (0-5, including easy/hard clear); arcaeaonline cards render no rating
+  0-5, including easy/hard clear. Arcaeaonline cards render no rating
   class (their level diamond is difficulty-agnostic) and no P/F/L.
 - Text recognition intentionally uses RapidOCR (PaddleOCR onnx models)
-  instead of the CRNN bundled with core-ocr; the CRNN provider remains
+  instead of the CRNN bundled with core-ocr. The CRNN provider remains
   available as a fallback.
 
 ## Conventions
 
-- Sessions are injected with `Depends(get_session)`; endpoints never
-  open `SessionLocal` themselves (the import pipeline's background
-  thread is the deliberate exception — it is not request-scoped).
+- Sessions are injected with `Depends(get_session)`. Endpoints never
+  open `SessionLocal` themselves. The import pipeline's background
+  thread is the deliberate exception, as it is not request-scoped.
 - Routers stay thin: endpoints, parameter validation, HTTP error
   mapping. Query and business logic live in services, not routers.
 - SQLAlchemy 2.0 `select()` style only.
 - Endpoints return Pydantic models, never bare dicts. A response model
   silently drops undeclared fields, so check field parity against the
-  exact-equality tests; after API changes, run
+  exact-equality tests. After API changes, run
   `uv run python backend/scripts/dump_openapi.py` to refresh the
   committed `openapi.json` (a test fails while it is stale), then
   `pnpm generate:api` in `frontend/` to regenerate the wire types.
@@ -128,7 +127,7 @@ can be reset any time by deleting `data/odm.sqlite3`.
   in-memory: alembic opens its own connection, and `SessionLocal` is
   name-imported, so monkeypatching could not intercept it.
 - Committed image fixtures are synthetic (hand-drawn SVGs exported to
-  PNG); the real-OCR smoke runs in the default suite, seeded from the
+  PNG). The real-OCR smoke runs in the default suite, seeded from the
   repository's `data/ihdb.db` when present (`tests/conftest.py`), and
   skips on machines without one, e.g. CI.
 
@@ -136,7 +135,7 @@ can be reset any time by deleting `data/odm.sqlite3`.
 
 - No export path from SQLite to training formats yet.
 - B30/B50 bot layouts covered: chieri v4, yurisaki, arcaeaonline
-  (b30/b50). Other bot renderings probe as unclassified; they can still
+  (b30/b50). Other bot renderings probe as unclassified. They can still
   be annotated manually via the flow switch, but OCR prefill for them
   needs a new `B30Layout` + recognizer.
 - Near-duplicate warnings: the perceptual hash column is populated but

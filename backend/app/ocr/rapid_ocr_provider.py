@@ -33,7 +33,7 @@ _DIGIT_CONFUSIONS = str.maketrans(
 
 
 class RapidOcrTextProvider(OcrTextProvider):
-    # rec-only fallback confidence floor; blank ROIs yield low-confidence junk
+    # rec-only fallback confidence floor. Blank ROIs yield low-confidence junk
     MIN_REC_CONFIDENCE: float = 0.5
 
     def __init__(self, *, numeric_only: bool = False) -> None:
@@ -51,7 +51,7 @@ class RapidOcrTextProvider(OcrTextProvider):
 
     @staticmethod
     def _extract_txts(result: object) -> list[str] | None:
-        # rapidocr v2+: RapidOCROutput with .txts; legacy v1: (items, elapses)
+        # rapidocr v2+: RapidOCROutput with .txts. Legacy v1: (items, elapses)
         txts = getattr(result, "txts", None)
         if txts is None and isinstance(result, tuple) and result:
             items = result[0]
@@ -64,7 +64,7 @@ class RapidOcrTextProvider(OcrTextProvider):
         txts = self._extract_txts(result)
         if not txts:
             # PaddleOCR detection fails on small single-line crops
-            # (e.g. the ~100x24 px PURE/FAR/LOST counters); recognize the
+            # (e.g. the ~100x24 px PURE/FAR/LOST counters). Recognize the
             # whole crop without detection instead
             rec = self._engine(img, use_det=False, use_cls=False, use_rec=True)
             rec_txts = getattr(rec, "txts", None)

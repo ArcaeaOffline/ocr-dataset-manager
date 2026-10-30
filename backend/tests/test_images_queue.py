@@ -30,7 +30,7 @@ def _set_hidden(client: TestClient, image_id: str) -> None:
 
 @pytest.fixture
 def probe_layout(monkeypatch: pytest.MonkeyPatch):
-    """Swap prefill.b30_layout for a recording fake; call with a layout
+    """Swap prefill.b30_layout for a recording fake. Call with a layout
     id, None, or a callable answering per image id. Returns the call log."""
     calls: list[str] = []
 
@@ -95,7 +95,7 @@ def test_next_b30_picks_only_incomplete(
     assert response.json() == {"id": partial.id}
     response = client.get(f"/api/images/{partial.id}/next", params={"kind": "b30"})
     assert response.json() == {"id": no_layout.id}
-    # an unknown layout can never count as done, so it stays in the queue;
+    # an unknown layout can never count as done, so it stays in the queue.
     # past the tail the scan wraps back to its head
     response = client.get(f"/api/images/{no_layout.id}/next", params={"kind": "b30"})
     assert response.json() == {"id": partial.id}
@@ -160,7 +160,7 @@ def test_next_device_skips_hidden(client: TestClient, seed: SimpleNamespace) -> 
     _set_hidden(client, hidden_img.id)
 
     assert client.get(f"/api/images/{done.id}/next").json() == {"id": visible.id}
-    # a hidden image can still anchor a scan; it just never comes back
+    # a hidden image can still anchor a scan. It just never comes back
     assert client.get(f"/api/images/{hidden_img.id}/next").json() == {"id": visible.id}
 
 

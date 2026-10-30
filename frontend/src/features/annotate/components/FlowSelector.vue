@@ -5,7 +5,7 @@ import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
 
 const props = defineProps<{
   flow: "device" | "b30";
-  /** current b30 layout; the layout group renders only when layoutOptions
+  /** current b30 layout. The layout group renders only when layoutOptions
    * is given (device flow has no layout concept) */
   layout?: string | null;
   layoutOptions?: { value: string | null; label: string }[];
@@ -37,7 +37,7 @@ const typeOptions: { value: "device" | "b30"; label: string }[] = [
   { value: "b30", label: "B30/50" },
 ];
 
-// the wrapper animates between 0 and the measured panel height; the
+// the wrapper animates between 0 and the measured panel height. The
 // observer keeps the measurement current when the panel content changes
 const panelEl = ref<HTMLElement | null>(null);
 const panelHeight = ref(0);

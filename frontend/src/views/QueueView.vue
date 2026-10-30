@@ -7,7 +7,7 @@ import { useRequest } from "@/composables/useRequest";
 
 const uncheckedOnly = ref(true);
 const kind = ref<QueueKind | null>(null);
-// hidden management view: lists hidden images only; queue filters do not
+// hidden management view: lists hidden images only. Queue filters do not
 // apply there (hidden images belong to no queue)
 const hiddenOnly = ref(false);
 const page = ref(0);
@@ -39,7 +39,7 @@ const items = computed(() => data.value.items);
 const total = computed(() => data.value.total);
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 
-// thumbnails always exist after import; a load error means the file is
+// thumbnails always exist after import. A load error means the file is
 // gone from disk, which the <img> error event reports
 const thumbFailed = ref<Record<string, true>>({});
 

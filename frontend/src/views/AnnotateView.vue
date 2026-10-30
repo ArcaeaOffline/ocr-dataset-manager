@@ -132,7 +132,7 @@ const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
 >(imageId, "device", () => loading.value);
 
 // saving a device annotation on a B30-classified image deletes its B30
-// rows (one kind per image); the first such save needs a confirmation
+// rows (one kind per image). The first such save needs a confirmation
 const {
   pending: crossKindPending,
   run: runCrossKindGuarded,
@@ -147,7 +147,7 @@ const crossKindWarning = computed(() => {
 });
 
 // the flow switch is ephemeral UI state seeded by the probe (never
-// persisted; queue kind derives from saved rows)
+// persisted. Queue kind derives from saved rows)
 const flowOverride = ref<"device" | "b30" | null>(null);
 const devicePrefillFetched = ref(false);
 const prefillLoading = ref(false);
@@ -181,7 +181,7 @@ async function fetchDevicePrefill() {
   }
 }
 
-// a saved draft or in-progress edits win; prefill fills null fields only
+// a saved draft or in-progress edits win. Prefill fills null fields only
 function fillEmptyFromPrefill(prefill: Prefill) {
   const candidates: [keyof ResultFields, number | string | null | undefined][] = [
     ["rois_type", prefill.rois_type],

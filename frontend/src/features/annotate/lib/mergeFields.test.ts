@@ -28,7 +28,7 @@ describe("mergeFields", () => {
   });
 
   it("copies always-keys from the saved row even when null there", () => {
-    // song_id is null in the saved row; without the always-key the
+    // song_id is null in the saved row. Without the always-key the
     // prefill proposal would win
     expect(mergeFields(empty, { song_id: "a" }, { song_id: null }, ["song_id"])).toEqual({
       song_id: null,

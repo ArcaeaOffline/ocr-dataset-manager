@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
 
     config.apply_settings(resolved)
 
-    # app.main binds the config constants at import; apply_settings
+    # app.main binds the config constants at import. apply_settings
     # must come first
     from .main import app
 

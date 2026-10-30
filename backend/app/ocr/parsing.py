@@ -19,7 +19,7 @@ def parse_int(text: str | None) -> int | None:
 
 
 def parse_pure_shiny(text: str | None) -> tuple[int | None, int | None]:
-    """Split a pure counter into (pure, pure_shiny); shiny is None when
+    """Split a pure counter into (pure, pure_shiny). Shiny is None when
     the parens part is missing or unparsable."""
     if not text:
         return None, None

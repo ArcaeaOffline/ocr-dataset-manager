@@ -29,7 +29,7 @@ def rank_candidates(
     by_id: dict[str, list[tuple[int, float]]] = {}
     for r in results:
         # chieri results arrive as the base ImageIdProviderResult, which
-        # carries no hash type; those weigh 1 like single-type matches
+        # carries no hash type. Those weigh 1 like single-type matches
         hash_type = getattr(r, "image_hash_type", None)
         weight = 1 if hash_type is None else weights.get(hash_type, 1)
         by_id.setdefault(r.image_id, []).append((weight, r.confidence))

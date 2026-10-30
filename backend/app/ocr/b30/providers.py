@@ -1,7 +1,7 @@
 """Provider bundle handed to B30 layout recognizers.
 
 The providers are owned by the prefill service (singletons behind its
-compute lock); recognizers only receive them."""
+compute lock). Recognizers only receive them."""
 
 from __future__ import annotations
 

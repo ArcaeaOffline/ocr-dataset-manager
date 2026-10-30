@@ -1,6 +1,6 @@
 import { ref } from "vue";
 
-/** serializes button actions: one in-flight action at a time; busyAction
+/** serializes button actions: one in-flight action at a time. busyAction
  * lets buttons disable themselves and swap in a spinner */
 export function useBusy<T extends string>() {
   const busyAction = ref<T | null>(null);

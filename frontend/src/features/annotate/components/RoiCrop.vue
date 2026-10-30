@@ -13,7 +13,7 @@ const style = computed(() => roiCropStyle(props.rect, props.canvas));
        padding box, so a border on the aspect-ratio box would desync it
        from the rect aspect and shift the window vertically -->
   <div class="w-full max-w-42 rounded border border-border bg-card">
-    <!-- aspect-ratio fixes the box height from its width; the inner image
+    <!-- aspect-ratio fixes the box height from its width. The inner image
          overflows and is shifted so the rect region fills the box -->
     <div
       class="relative w-full overflow-hidden rounded-[inherit]"

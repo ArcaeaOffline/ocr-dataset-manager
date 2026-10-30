@@ -8,7 +8,7 @@ background art. The 16:9 portrait device aspect (0.5625) collides with
 arcaeaonline B50 (0.561), so that bucket tries the arcaeaonline check
 first and falls through to the device ROIs selector.
 
-Returns a guess only; the result is never persisted - the human-confirmed
+Returns a guess only. The result is never persisted - the human-confirmed
 layout lives in `b30_results.layout`."""
 
 from __future__ import annotations
@@ -91,13 +91,13 @@ def _check_yurisaki(img: MatLike) -> bool:
 
 def _check_arcaeaonline(layout: B30Layout, img: MatLike) -> bool:
     size = (img.shape[1], img.shape[0])
-    # rank badge: dark translucent panel with a small white "#N" glyph;
+    # rank badge: dark translucent panel with a small white "#N" glyph.
     # the panel brightness follows the background art, so only a wide
     # band is meaningful. Rejects white-card layouts outright.
     badge = [_white_fraction(img, r) for r in _sample_rects(layout, size, "rank_badge")]
     if not badge or not all(0.02 <= f <= 0.30 for f in badge):
         return False
-    # score strip: dark band with white digits; translucent, but dark
+    # score strip: dark band with white digits. Translucent, but dark
     # stays dominant on every sampled background
     strips = []
     for x, y, w, h in _sample_rects(layout, size, "score"):
@@ -110,7 +110,7 @@ def _check_arcaeaonline(layout: B30Layout, img: MatLike) -> bool:
 
 
 # chieri renders card text over the jacket art, so no text-polarity
-# statistic is stable between samples; its 1800x4400 canvas aspect is far
+# statistic is stable between samples. Its 1800x4400 canvas aspect is far
 # from every phone aspect (21:9 is 4.7% away), so it is aspect-gated
 # without a structural check. Layouts absent from here pass on aspect
 # alone.

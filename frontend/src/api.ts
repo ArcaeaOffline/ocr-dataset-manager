@@ -4,7 +4,7 @@ import type { components, paths } from "./api-schema";
 type Schemas = components["schemas"];
 
 /**
- * A stored screenshot. `checked` is null when not annotated yet; on b30
+ * A stored screenshot. `checked` is null when not annotated yet. On b30
  * images it is the derived "every expected component checked" state and
  * `b30_checked_count` / `b30_component_count` carry its per-card
  * progress (the count is null when the layout is unknown). Hidden
@@ -18,7 +18,7 @@ export type Candidate = Schemas["PrefillCandidate"];
 
 export type Prefill = Schemas["PrefillPayload"];
 
-// saved results always serialize every field; the schema keeps them
+// saved results always serialize every field. The schema keeps them
 // optional only because the same model doubles as the partial PUT body
 export type DeviceResult = Required<Schemas["DeviceResultOut"]>;
 
@@ -51,7 +51,7 @@ export type QueueKind = ImageItem["kind"];
 
 export type SongEntry = Schemas["SongOut"];
 
-/** Partner letter id and display name; `name` is null when the game's
+/** Partner letter id and display name. `name` is null when the game's
  * characters file has no entry for the id. */
 export type PartnerEntry = Schemas["PartnerOut"];
 
@@ -60,7 +60,7 @@ export const CLEAR_STATUS_NAMES = ["TL", "TC", "FR", "PM", "EC", "HC"];
 
 const client = createClient<paths>();
 
-// openapi-fetch resolves non-2xx to `error` instead of throwing; this
+// openapi-fetch resolves non-2xx to `error` instead of throwing. This
 // restores the throw-on-failure contract useRequest is built on.
 // Problem errors carry the explanation in `detail`, bare status
 // problems (e.g. unmatched /api paths) omit it.
@@ -167,7 +167,7 @@ export const api = {
         params: { path: { image_id: id } },
       }),
     ) as Promise<B30Result | null>,
-  // upserts the given components only; others stay untouched
+  // upserts the given components only. Others stay untouched
   saveB30Result: (id: string, layout: string | null, components: B30ComponentFields[]) =>
     unwrap(
       client.PUT("/api/images/{image_id}/b30_result", {

@@ -144,7 +144,7 @@ def test_probe_returns_none_for_unmatched_aspects() -> None:
 class _StubText(RapidOcrTextProvider):
     @override
     def __init__(self) -> None:  # pyright: ignore[reportMissingSuperCall]
-        pass  # skip engine loading; reads go through the stub methods
+        pass  # skip engine loading. Reads go through the stub methods
 
     @override
     def result(self, img: MatLike, /) -> str | None:
@@ -158,7 +158,7 @@ class _StubText(RapidOcrTextProvider):
 class _StubIhdb(ImageHashDatabaseIdProvider):
     @override
     def __init__(self) -> None:  # pyright: ignore[reportMissingSuperCall]
-        pass  # no database; jacket lookups return no candidates
+        pass  # no database. Jacket lookups return no candidates
 
     @override
     def result(
@@ -186,7 +186,7 @@ class _StubIhdb(ImageHashDatabaseIdProvider):
 def test_recognizer_field_names_resolve() -> None:
     # blank cards with fixed stub outputs: a field name a recognizer
     # references but the layout JSON lacks raises KeyError here. Crop
-    # positions are pinned by the golden tests above; chieri_v4 is
+    # positions are pinned by the golden tests above. chieri_v4 is
     # excluded - its field names live in core-ocr's own suite
     providers = OcrProviders(text=_StubText(), raw=_StubText(), ihdb=_StubIhdb())
     for layout_id in ("yurisaki", "arcaeaonline_b30", "arcaeaonline_b50"):

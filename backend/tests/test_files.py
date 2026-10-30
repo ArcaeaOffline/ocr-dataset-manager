@@ -49,7 +49,7 @@ def test_thumbnail_served_with_immutable_cache(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
     # the thumbnail endpoint serves whatever sits at the content-addressed
-    # path; no image row is consulted
+    # path. No image row is consulted
     image = seed.image()
     _store_thumb(image.id, b"thumb-bytes")
 

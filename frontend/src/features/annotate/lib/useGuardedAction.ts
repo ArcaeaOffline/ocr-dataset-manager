@@ -2,7 +2,7 @@ import { ref, watch, type Ref } from "vue";
 
 /**
  * Runs actions behind a one-time confirmation. `run(action)` executes
- * immediately while `gate()` is false or after the user confirmed;
+ * immediately while `gate()` is false or after the user confirmed.
  * otherwise the action is deferred and `pending` turns true for the
  * caller's confirm dialog (`confirm` runs it, `cancel` drops it). The
  * confirmation resets whenever `scopeKey` changes.

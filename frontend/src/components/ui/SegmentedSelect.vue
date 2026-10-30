@@ -8,7 +8,7 @@ const props = defineProps<{
   modelValue: T;
   /** shown below the segments, e.g. a low-confidence prefill warning */
   hint?: string | null;
-  /** the value is the machine prefill proposal; shows a marker by the label */
+  /** the value is the machine prefill proposal. Shows a marker by the label */
   prefilled?: boolean;
 }>();
 
@@ -17,14 +17,14 @@ const emit = defineEmits<{
 }>();
 
 // reka's pressed check treats a nullish group value as "nothing selected",
-// so an option with value null can never render pressed; the "unknown"
+// so an option with value null can never render pressed. The "unknown"
 // option rides on a sentinel instead. Option values are ids and small
 // numbers and never collide with this string.
 const NULL_VALUE = "__odm-null__";
 
 const groupValue = computed(() => props.modelValue ?? NULL_VALUE);
 
-// re-clicking the active segment emits undefined in reka; it and the
+// re-clicking the active segment emits undefined in reka. It and the
 // sentinel-bound "unknown" both clear to null
 function onGroupUpdate(value: unknown) {
   emit("update:modelValue", (value === NULL_VALUE || value == null ? null : value) as T);

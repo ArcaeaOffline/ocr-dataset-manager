@@ -2,7 +2,7 @@ import { shallowReactive } from "vue";
 
 /**
  * Tracks which form fields currently hold the machine prefill proposal.
- * `markPrefilled` replaces the whole set after a programmatic load;
+ * `markPrefilled` replaces the whole set after a programmatic load.
  * writes through the returned form clear a field's mark, so a value the
  * user replaced is no longer reported. A write of the unchanged value
  * keeps the mark: the pickers re-emit their (prefilled) text when the

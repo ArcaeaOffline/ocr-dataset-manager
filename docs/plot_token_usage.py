@@ -1,6 +1,6 @@
 """Plot daily token usage from docs/token-usage.jsonl as a stacked SVG bar chart.
 
-Each bar is one GMT day; segments bottom-up are cache-read input, cache-write
+Each bar is one GMT day. Segments bottom-up are cache-read input, cache-write
 input, non-cached input, and output. Bars aggregate all sources and models of
 that day, placed on a real calendar axis. Each bar is labeled with its total
 tokens and its cache-hit rate (cache-read / input).
@@ -46,7 +46,7 @@ def main() -> None:
 
     cache_read = [day["cache_read_tokens"] for day in days]
     cache_write = [day["cache_write_tokens"] for day in days]
-    # input_tokens contains the cached parts; the remainder is plain input
+    # input_tokens contains the cached parts. The remainder is plain input
     plain_input = [
         max(0, day["input_tokens"] - day["cache_read_tokens"] - day["cache_write_tokens"])
         for day in days
@@ -75,7 +75,7 @@ def main() -> None:
         ax.bar(xs, values, bottom=bottom, label=name, color=color, width=1.0)
         bottom = [b + v for b, v in zip(bottom, values, strict=True)]
     # on the calendar axis, active days can be adjacent and a label is wider
-    # than one day of axis space; the white halo keeps it legible where it
+    # than one day of axis space. The white halo keeps it legible where it
     # crosses a neighboring bar
     label_style = dict(
         ha="center", va="bottom", fontsize=8,

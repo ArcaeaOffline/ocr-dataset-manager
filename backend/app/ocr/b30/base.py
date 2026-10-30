@@ -81,7 +81,7 @@ class B30Layout:
 
 @dataclass
 class ComponentOcr:
-    """OCR proposal for one card; every field is a suggestion the human
+    """OCR proposal for one card. Every field is a suggestion the human
     confirms, so any of them may be None."""
 
     index: int
@@ -97,7 +97,7 @@ class ComponentOcr:
     clear_status: int | None = None
 
 
-# clear type as stored in play records; bots render the same states the
+# clear type as stored in play records. Bots render the same states the
 # st3 clearType byte does. Letter keys are the badge glyphs bots print.
 CLEAR_BADGE_LETTERS: dict[str, int] = {
     "TL": 0,  # track lost
@@ -129,7 +129,7 @@ RATING_CLASS_HSV_RANGES: dict[
 
 def vote_rating_class(roi_bgr: MatLike) -> tuple[int | None, list[int]]:
     """Color-vote a difficulty badge ROI. Returns (best_class, counts)
-    with counts ordered pst, prs, ftr, byd, etr; best is None when every
+    with counts ordered pst, prs, ftr, byd, etr. Best is None when every
     count is zero."""
     hsv = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
     votes = [
@@ -142,7 +142,7 @@ def vote_rating_class(roi_bgr: MatLike) -> tuple[int | None, list[int]]:
 
 
 # card jackets render ~96px square and sit a few px off between renders,
-# enough to flip an ihdb match; sweeping small offsets and keeping each
+# enough to flip an ihdb match. Sweeping small offsets and keeping each
 # id's best confidence recovers the correct match
 JACKET_OFFSETS: tuple[tuple[int, int], ...] = (
     (0, 0),
@@ -209,7 +209,7 @@ def _load_json_layout(id: str) -> B30Layout:
 YURISAKI_B50 = _load_json_layout("yurisaki")
 
 # one card design, two heights: the B30 variant renders 6 card rows, the
-# B50 one 10; the header above and the footer below the grid are identical.
+# B50 one 10. The header above and the footer below the grid are identical.
 # The canvas height only feeds the aspect table - scaling is width-based.
 ARCAEAONLINE_B30 = _load_json_layout("arcaeaonline_b30")
 ARCAEAONLINE_B50 = _load_json_layout("arcaeaonline_b50")

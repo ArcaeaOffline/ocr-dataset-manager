@@ -43,7 +43,7 @@ PrefillValue = int | str | None | list[int] | list[dict[str, str | float]]
 PrefillResult: TypeAlias = dict[str, PrefillValue]
 
 
-# geometry served to the annotate view; canvas is [width, height] of the
+# geometry served to the annotate view. Canvas is [width, height] of the
 # black-edge-cropped image the rects live on
 class DeviceRoisGeometry(TypedDict):
     rois_type: int
@@ -53,14 +53,14 @@ class DeviceRoisGeometry(TypedDict):
 
 # The early/late line renders "L<far_late> E<far_early>", extended with
 # "(P<pure_late>)" and "(P<pure_early>)" when PURE early/late display is
-# on; both forms occur on either layout. Parens are optional because rec
-# mangles them; the P marker is what separates the two forms, so it is
+# on. Both forms occur on either layout. Parens are optional because rec
+# mangles them. The P marker is what separates the two forms, so it is
 # matched strictly
 _EARLY_LATE_WITH_PURE = re.compile(
     r"L\s*(\d+)\s*\(?\s*P\s*(\d+)\s*\)?\s*E\s*(\d+)\s*\(?\s*P\s*(\d+)\s*\)?",
     re.IGNORECASE,
 )
-# far-only form, also the fallback when the P marker is lost; the loose
+# far-only form, also the fallback when the P marker is lost. The loose
 # middle keeps far values parseable under OCR noise
 _EARLY_LATE_PLAIN = re.compile(r"L\s*(\d+).*E\s*(\d+)", re.IGNORECASE)
 
@@ -107,7 +107,7 @@ class _LockedLru(Generic[K, V]):
 
 
 _cache: _LockedLru[str, PrefillResult] = _LockedLru(CAP)
-# serializes OCR engine + ihdb access; single-user tool, throughput is
+# serializes OCR engine + ihdb access. Single-user tool, throughput is
 # irrelevant next to correctness. RLock: compute() holds it across the
 # whole run while _get_text_provider() re-acquires it
 _compute_lock = threading.RLock()
@@ -125,7 +125,7 @@ def _get_text_provider() -> RapidOcrTextProvider:
 
 
 def _get_raw_text_provider() -> RapidOcrTextProvider:
-    """Keeps structure characters so early/late lines survive for regex;
+    """Keeps structure characters so early/late lines survive for regex.
     numeric-only normalization would collapse L0(P22) into 0220."""
     global _raw_text_provider
     with _compute_lock:
@@ -184,7 +184,7 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
 
         selector_result = DeviceRoisAutoSelector.select(cropped, None)
         if selector_result is DeviceRoisAutoSelectorResult.UNKNOWN:
-            # layout undetectable; everything else stays empty
+            # layout undetectable. Everything else stays empty
             return {"rois_type": None}
         if selector_result is DeviceRoisAutoSelectorResult.T1:
             rois_type = 0
@@ -396,7 +396,7 @@ def _read_image(relative_path: str) -> MatLike:
 
 
 def _get_ihdb():
-    """One shared connection; all ihdb access runs under `_compute_lock`,
+    """One shared connection. All ihdb access runs under `_compute_lock`,
     so `check_same_thread=False` is safe."""
     global _ihdb
     with _compute_lock:
@@ -431,7 +431,7 @@ _recognizers: dict[str, B30LayoutOcr] = {}
 
 
 def _get_recognizer(layout_id: str) -> B30LayoutOcr:
-    # singletons; callers run under _compute_lock
+    # singletons. Callers run under _compute_lock
     recognizer = _recognizers.get(layout_id)
     if recognizer is None:
         recognizer = make_recognizer(layout_id)
@@ -440,7 +440,7 @@ def _get_recognizer(layout_id: str) -> B30LayoutOcr:
 
 
 def b30_layout(image_id: str, relative_path: str) -> str | None:
-    """Probe the bot layout of a screenshot; None when it is a device
+    """Probe the bot layout of a screenshot. None when it is a device
     screenshot or nothing matches."""
     cached = _b30_layouts.get(image_id)
     if not isinstance(cached, _Absent):
@@ -459,7 +459,7 @@ def b30_component(
     layout_id: str | None = None,
 ) -> ComponentOcr | None:
     """OCR one card of a B30/B50 screenshot. `layout_id` overrides the
-    probed layout; None is returned when no layout is given and the image
+    probed layout. None is returned when no layout is given and the image
     does not probe as a supported B30 layout."""
     if layout_id is None:
         layout_id = b30_layout(image_id, relative_path)
@@ -492,7 +492,7 @@ def b30_card_jpeg(
     layout_id: str | None = None,
 ) -> bytes | None:
     """JPEG-encoded crop of one card, for the annotate view. `layout_id`
-    overrides the probed layout; None is returned when no layout is given
+    overrides the probed layout. None is returned when no layout is given
     and the image does not probe as a supported B30 layout."""
     if layout_id is None:
         layout_id = b30_layout(image_id, relative_path)

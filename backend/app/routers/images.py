@@ -29,10 +29,10 @@ class ImageOut(BaseModel):
     # classification by human-confirmed rows: which annotate flow this
     # image belongs to
     kind: queues.QueueKind
-    # device: None = not annotated yet; otherwise device_results.checked.
+    # device: None = not annotated yet. Otherwise device_results.checked.
     # b30: whether every component the layout expects is checked.
     checked: bool | None
-    # b30 only: reviewed card count and the layout's expected card count;
+    # b30 only: reviewed card count and the layout's expected card count.
     # expected is None when the layout is missing or unknown
     b30_checked_count: int | None = None
     b30_component_count: int | None = None
@@ -136,7 +136,7 @@ class PrefillCandidate(BaseModel):
     confidence: float
 
 
-# field-parity with PrefillResult in services/prefill.py; the OCR chain
+# field-parity with PrefillResult in services/prefill.py. The OCR chain
 # fills a subset per rois detectability, so every field but rois_type is
 # optional and the endpoint serializes with exclude_unset
 class PrefillPayload(BaseModel):
@@ -200,7 +200,7 @@ def list_images(
     hidden: Literal["only"] | None = None,
     session: Session = Depends(get_session),
 ) -> ImageListOut:
-    """`hidden` absent: exclude hidden images; `hidden=only`: list only
+    """`hidden` absent: exclude hidden images. `hidden=only`: list only
     hidden ones."""
     limit = min(limit, 200)
     hidden_condition = (
@@ -214,7 +214,7 @@ def list_images(
     if kind is not None:
         conditions.append(queues.KIND_FILTERS[kind])
     if unchecked_only:
-        # a hybrid image presents as device (queues.kind_of); without
+        # a hybrid image presents as device (queues.kind_of). Without
         # ~device_sq the b30 disjuncts would pull checked device images
         # into the unchecked views
         if kind == "b30":
@@ -226,7 +226,7 @@ def list_images(
             )
         else:
             # device queue: a draft row (checked=false) counts as
-            # unchecked just like a missing row; B30-classified images
+            # unchecked just like a missing row. B30-classified images
             # belong to the B30 queue instead
             conditions.append(queues.unchecked_filter() & ~b30_sq)
     stmt = select(
@@ -321,7 +321,7 @@ def get_image(image_id: str, session: Session = Depends(get_session)) -> ImageOu
 def set_image_hidden(
     image_id: str, body: HiddenIn, session: Session = Depends(get_session)
 ) -> ImageOut:
-    """Hiding is reversible and idempotent; the row stays as a sha256
+    """Hiding is reversible and idempotent. The row stays as a sha256
     dedup anchor, so re-importing the same file still counts as skipped."""
     image = _require_image(session, image_id)
     image.hidden = body.hidden
@@ -336,7 +336,7 @@ def get_next_unchecked(
     session: Session = Depends(get_session),
 ) -> NextImageOut:
     """Next unchecked image in queue order (newest first), starting after
-    `image_id` and wrapping to the queue head; `{"id": None}` when no
+    `image_id` and wrapping to the queue head. `{"id": None}` when no
     unchecked image remains."""
     current = _require_image(session, image_id)
     return NextImageOut(id=queues.next_unchecked(session, current, kind))
@@ -378,7 +378,7 @@ def get_b30_component_prefill(
     layout: str | None = None,
     session: Session = Depends(get_session),
 ) -> B30ComponentPrefillOut:
-    """OCR proposal for one card; 422 when the image does not probe as a
+    """OCR proposal for one card. 422 when the image does not probe as a
     supported B30 layout. `layout` overrides the probed layout."""
     if layout is not None and layout not in LAYOUTS:
         raise HTTPException(status_code=422, detail=f"unknown layout: {layout}")
@@ -484,7 +484,7 @@ def _b30_result_out(session: Session, image_id: str) -> B30ResultOut | None:
 def get_b30_result(
     image_id: str, session: Session = Depends(get_session)
 ) -> B30ResultOut | None:
-    """Saved B30 annotation; `None` (HTTP 200) means not annotated yet."""
+    """Saved B30 annotation. `None` (HTTP 200) means not annotated yet."""
     _require_image(session, image_id)
     return _b30_result_out(session, image_id)
 
@@ -509,7 +509,7 @@ def save_b30_result(
 def get_result(
     image_id: str, session: Session = Depends(get_session)
 ) -> DeviceResultOut | None:
-    """Saved annotation; `None` (HTTP 200) means not annotated yet."""
+    """Saved annotation. `None` (HTTP 200) means not annotated yet."""
     _require_image(session, image_id)
     result = session.get(DeviceResult, image_id)
     if result is None:

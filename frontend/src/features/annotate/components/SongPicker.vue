@@ -21,10 +21,10 @@ const props = defineProps<{
   candidates: Candidate[];
   songs: SongEntry[];
   modelValue: string | null;
-  /** the song catalog is still loading; the panel shows a spinner
+  /** the song catalog is still loading. The panel shows a spinner
    * instead of a false "no matches" */
   loading?: boolean;
-  /** the value is the machine prefill proposal; shows a marker by the label */
+  /** the value is the machine prefill proposal. Shows a marker by the label */
   prefilled?: boolean;
 }>();
 
@@ -64,7 +64,7 @@ const filteredSongs = computed(() => {
 });
 
 // the single-select listbox deselects the picked candidate on re-click by
-// emitting undefined; the field keeps its text in that case
+// emitting undefined. The field keeps its text in that case
 function onSelect(value: unknown) {
   if (typeof value !== "string") return;
   text.value = value;

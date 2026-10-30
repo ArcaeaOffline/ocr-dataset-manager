@@ -1,7 +1,7 @@
 """Adapter presenting core-ocr's ChieriBotV4 scenario through the local
 B30 recognizer interface. The scenario's per-hash-type song id results
 are re-ranked with the shared weighted ranking for consistency with the
-other layouts; its P/F/L numbers carry no shiny count."""
+other layouts. Its P/F/L numbers carry no shiny count."""
 
 from __future__ import annotations
 

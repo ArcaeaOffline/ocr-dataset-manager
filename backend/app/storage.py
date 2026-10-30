@@ -1,7 +1,6 @@
 """Local-disk image storage.
 
-The database only ever stores paths relative to IMAGES_DIR; switching to
-another backend later means reimplementing this module only.
+The database only ever stores paths relative to IMAGES_DIR.
 """
 
 import shutil
@@ -29,7 +28,7 @@ def file_sha256(path: Path) -> str:
 def average_image_hash(img_bgr: MatLike) -> str:
     """Whole-image perceptual hash (16x16 average hasher, hex-packed bits).
 
-    Non-unique by design; only used for near-duplicate warnings."""
+    Non-unique by design. Only used for near-duplicate warnings."""
     from arcaea_offline_ocr.core import hashers  # noqa: PLC0415
 
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)

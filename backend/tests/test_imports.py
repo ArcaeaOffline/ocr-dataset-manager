@@ -39,7 +39,7 @@ def _set_hidden(client: TestClient, image_id: str) -> None:
 def _wait_finished(
     client: TestClient, batch_id: str, timeout_s: float = 15.0
 ) -> dict[str, object]:
-    """start_import runs the pipeline in a daemon thread; poll the batch
+    """start_import runs the pipeline in a daemon thread. Poll the batch
     row until it carries finished_at."""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:

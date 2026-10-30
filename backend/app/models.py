@@ -36,7 +36,7 @@ class Image(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_uuid)
     # path relative to the images storage dir, e.g. "ab/ab3f....jpg"
     relative_path: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    # content hash, computed on every import; the basis of import dedup
+    # content hash, computed on every import. The basis of import dedup
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     # whole-image perceptual hash (average hasher, 16x16), non-unique,
     # used only for "near-duplicate" warnings
@@ -59,8 +59,7 @@ class Image(Base):
 class OriginalFilename(Base):
     """Provenance record: stored image uuid -> filename it arrived as.
 
-    Kept out of `images` so the core table stays about the file itself,
-    and so legacy uuid<-name CSVs can be loaded as-is."""
+    Kept out of `images` so the core table stays about the file itself."""
 
     __tablename__ = "image_original_filenames"
 
@@ -73,7 +72,7 @@ class OriginalFilename(Base):
 class DeviceResult(Base):
     """Annotated device-screenshot values, 1:1 with `images`.
 
-    Only human-affirmed values live here; OCR prefill artifacts
+    Only human-affirmed values live here. OCR prefill artifacts
     (candidates, confidences, mask votes) are recomputed on demand and
     never persisted."""
 
@@ -82,7 +81,7 @@ class DeviceResult(Base):
     image_id: Mapped[str] = mapped_column(
         String(32), ForeignKey("images.id", ondelete="CASCADE"), primary_key=True
     )
-    # 0 = T1, 1 = T2; this is itself annotated content, not metadata
+    # 0 = T1, 1 = T2. This is itself annotated content, not metadata
     rois_type: Mapped[int | None] = mapped_column(Integer, nullable=True)
     song_id: Mapped[str | None] = mapped_column(String, nullable=True)
     partner_id: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -112,7 +111,7 @@ class DeviceResult(Base):
 class B30Result(Base):
     """Human-confirmed classification of an image as a B30/B50 screenshot.
 
-    1:1 with `images`; the row's existence marks the image as B30/B50
+    1:1 with `images`. The row's existence marks the image as B30/B50
     content. An image counts as fully reviewed when every component its
     layout expects has a checked `b30_components` row - there is no
     image-level checked flag."""
@@ -123,7 +122,7 @@ class B30Result(Base):
         String(32), ForeignKey("images.id", ondelete="CASCADE"), primary_key=True
     )
     # bot layout identifier ("chieri_v4", "yurisaki",
-    # "arcaeaonline_b30", "arcaeaonline_b50"); None = confirmed B30/B50
+    # "arcaeaonline_b30", "arcaeaonline_b50"). None = confirmed B30/B50
     # with the layout not chosen yet
     layout: Mapped[str | None] = mapped_column(String, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
@@ -138,7 +137,7 @@ class B30Component(Base):
     """One confirmed card of a B30/B50 screenshot.
 
     `component_index` is the card's grid position, left-to-right then
-    top-to-bottom, zero-based; how many cards a layout renders is a
+    top-to-bottom, zero-based. How many cards a layout renders is a
     property of the layout, not of the rows. Cards a layout does not
     display a field on (arcaeaonline renders no P/F/L) stay NULL."""
 

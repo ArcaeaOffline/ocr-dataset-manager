@@ -59,7 +59,7 @@ def test_songs_without_songlist_file_returns_empty_list(client: TestClient) -> N
 def test_songs_reparse_when_file_mtime_changes(
     client: TestClient, songlist: Path
 ) -> None:
-    # the parse cache is keyed on (path, mtime); force well-separated
+    # the parse cache is keyed on (path, mtime). Force well-separated
     # mtimes so the second read cannot collide with the first
     songlist.write_text(
         json.dumps({"songs": [{"id": "a", "title_localized": {"en": "A"}}]}),
@@ -127,7 +127,7 @@ def test_partners_name_null_for_unknown_character_id(
 def test_partners_reparse_when_characters_mtime_changes(
     client: TestClient, partner_icons: Path, characters: Path
 ) -> None:
-    # the parse cache is keyed on (path, mtime); force well-separated
+    # the parse cache is keyed on (path, mtime). Force well-separated
     # mtimes so the second read cannot collide with the first
     (partner_icons / "1.png").write_bytes(b"x")
     characters.write_text(

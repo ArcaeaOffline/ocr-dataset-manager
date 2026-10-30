@@ -32,15 +32,15 @@ The workflow it is built around:
    pre-filled, suspicious values are flagged by client-side consistency
    checks (identity equations like `pure = shiny + early + late`), and
    annotating one image is mostly "glance, correct, confirm".
-4. Confirmed values land in SQLite; everything OCR-related is recomputable
+4. Confirmed values land in SQLite. Everything OCR-related is recomputable
    and never persisted.
 
 B30/B50 results images (one image, many sub-components) are also a
-supported mode. A layout probe classifies the bot rendering pattern;
-other renderings probe as unclassified — and each card is reviewed and
-confirmed independently. An image counts as fully reviewed once every
-component its layout expects has a checked row. These results are
-stored in their own tables, separate from the single-image device results.
+supported mode. Each card is reviewed and confirmed independently, and
+renderings the probe does not recognize are annotated manually. An
+image counts as fully reviewed once every component its layout expects
+has a checked row. These results are stored in their own tables,
+separate from the single-image device results.
 
 ## Requirements
 
@@ -146,7 +146,7 @@ uv run backend/scripts/package_windows.py
 
 The output is `build/dist/odm/`. Double-clicking `odm.exe` starts the
 server, opens the browser, and creates `data/` next to the executable
-on first start; the ihdb and extracted assets belong in that `data/`
+on first start. The ihdb and extracted assets belong in that `data/`
 directory ([What you need to provide](#what-you-need-to-provide)).
 The console window is the server: closing it stops it.
 

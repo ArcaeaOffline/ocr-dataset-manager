@@ -34,7 +34,7 @@ def unchecked_filter():
 
 
 def b30_done_filter():
-    """Images classified as B30 whose components are not all checked; a
+    """Images classified as B30 whose components are not all checked. A
     B30 row whose layout is missing or unknown can never be done (the
     expected component count would be unknown)."""
     layout_sq = (
@@ -77,7 +77,7 @@ KIND_FILTERS: dict[QueueKind, ColumnElement[bool]] = {
 
 
 class B30Progress(NamedTuple):
-    """Review progress of one B30-classified image; `expected` is None
+    """Review progress of one B30-classified image. `expected` is None
     when the layout is missing or unknown, in which case the image can
     never be done."""
 
@@ -90,7 +90,7 @@ class B30Progress(NamedTuple):
 
 
 def b30_progress_map(session: Session, image_ids: list[str]) -> dict[str, B30Progress]:
-    """Review progress for each B30-classified image; images without a
+    """Review progress for each B30-classified image. Images without a
     `b30_results` row are absent from the map."""
     if not image_ids:
         return {}
@@ -135,7 +135,7 @@ def kind_of(device_row_exists: bool, b30_row_exists: bool) -> QueueKind:
 
 
 # the b30 next-image scan verifies aspect-matched candidates with the
-# structural probe one by one; bound it so a queue head full of device
+# structural probe one by one. Bound it so a queue head full of device
 # screenshots (16:9 shares the arcaeaonline B50 aspect) cannot stall the
 # request
 _NEXT_SCAN_LIMIT = 50
@@ -150,7 +150,7 @@ def _probes_as_b30(image_id: str, relative_path: str) -> bool:
 
 
 def _b30_aspect_matches():
-    """SQL aspect gate over the known B30 canvases; NULL width/height (or
+    """SQL aspect gate over the known B30 canvases. NULL width/height (or
     height 0) yields NULL, which never matches."""
     aspect = Image.width * 1.0 / Image.height
     return or_(
@@ -165,7 +165,7 @@ def next_unchecked(
     session: Session, current: Image, kind: Literal["device", "b30"]
 ) -> str | None:
     """Id of the next unchecked image in queue order (newest first),
-    starting after `current` and wrapping to the queue head; None when no
+    starting after `current` and wrapping to the queue head. None when no
     unchecked image remains. The b30 queue also picks up images with no
     annotation rows whose aspect matches a known B30 canvas - aspect
     matches are verified with the structural probe, since 16:9 device

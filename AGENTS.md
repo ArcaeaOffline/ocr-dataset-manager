@@ -24,8 +24,8 @@ due to privacy and copyright issues.
 ## Commands
 
 ```bash
-# install (workspace root; --all-packages is required, plain `uv sync`
-# installs nothing but the root project)
+# install from the workspace root. --all-packages is required: plain
+# `uv sync` installs nothing but the root project
 uv sync --all-packages
 
 # local all-checks: backend format + lint + types + tests,
@@ -48,7 +48,7 @@ instead of skipping it silently.
 - Commit messages: conventional-commit style (`feat:`, `fix:`, `docs:`,
   `chore:`), subject in English, body states what is here now — not the
   history of how it got that way.
-- Code comments state current behavior and constraints only; no
+- Code comments state current behavior and constraints only. No
   change-narration ("previously X", "no longer Y").
 
 ## Help make this project better

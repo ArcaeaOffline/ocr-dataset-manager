@@ -1,7 +1,7 @@
 """End-to-end smoke: the committed hand-drawn result screens through the
 real OCR chain (RapidOCR + ihdb).
 
-The PNGs are 100%-scale exports of the SVG sources next to them; after
+The PNGs are 100%-scale exports of the SVG sources next to them. After
 re-export, update EXPECTED from the drawn values. Known gaps pinned as
 None: device_t1_2's pure early/late (drawn as "(P30)(P19)" but not
 recovered), and the T2 score-diff text defeats detection."""
@@ -16,7 +16,7 @@ from app.config import IHDB_PATH
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
-# every field the fixtures draw; song/partner stay unasserted - the cover
+# every field the fixtures draw. Song/partner stay unasserted - the cover
 # and partner blocks match ihdb by accident, not by design
 EXPECTED: dict[str, dict[str, int | None]] = {
     "device_t1_1.png": {

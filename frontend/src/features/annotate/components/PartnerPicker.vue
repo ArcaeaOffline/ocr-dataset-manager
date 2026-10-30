@@ -21,7 +21,7 @@ const props = defineProps<{
   candidates: Candidate[];
   partners: PartnerEntry[];
   modelValue: string | null;
-  /** the value is the machine prefill proposal; shows a marker by the label */
+  /** the value is the machine prefill proposal. Shows a marker by the label */
   prefilled?: boolean;
 }>();
 
@@ -38,7 +38,7 @@ watch(text, (value) => {
   emit("update:modelValue", value.trim() === "" ? null : value);
 });
 
-// prefill fills partner_id after mount (flow switch fetches it separately);
+// prefill fills partner_id after mount (flow switch fetches it separately).
 // the input is driven by `text`, so modelValue changes must sync back
 watch(
   () => props.modelValue,
@@ -48,7 +48,7 @@ watch(
 );
 
 // the single-select listbox deselects the picked candidate on re-click by
-// emitting undefined; the field keeps its text in that case
+// emitting undefined. The field keeps its text in that case
 function onSelect(value: unknown) {
   if (typeof value !== "string") return;
   text.value = value;
@@ -62,7 +62,7 @@ const filteredPartners = computed(() => {
   );
 });
 
-// an empty input proposes nothing; the browse dialog covers the full list
+// an empty input proposes nothing. The browse dialog covers the full list
 const catalogMatches = computed(() => {
   const q = text.value.trim().toLowerCase();
   if (q === "") return [];
@@ -88,7 +88,7 @@ function partnerLabel(p: PartnerEntry) {
   return p.name ? `${p.name} · ${p.id}` : p.id;
 }
 
-// candidates are icon stems; only the id is known before the catalog loads
+// candidates are icon stems. Only the id is known before the catalog loads
 function candidateLabel(imageId: string) {
   return partnerLabel(partnersById.value.get(imageId) ?? { id: imageId, name: null });
 }
@@ -135,7 +135,7 @@ function selectFromPanel(id: string) {
     </ComboboxAnchor>
 
     <!-- OCR candidates are proposals, not catalog entries, so they never
-         filter against the typed text; the catalog section below does -->
+         filter against the typed text. The catalog section below does -->
     <ComboboxPortal v-if="props.candidates.length > 0 || catalogMatches.length > 0">
       <ComboboxContent
         position="popper"
