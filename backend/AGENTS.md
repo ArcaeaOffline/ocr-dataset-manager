@@ -71,9 +71,11 @@ can be reset any time by deleting `data/odm.sqlite3`.
   the first cross-kind save. A B30 image counts as fully reviewed when
   every component its layout expects has a checked row; there is no
   image-level checked flag.
-- **B30/B50 layouts** live in `app/ocr/b30/`: each `B30Layout`
-  describes a bot's canonical canvas, card grid, and per-card ROIs, all
-  factor-scaled by `width / canvas_width`. `layout_probe.py` classifies
+- **B30/B50 layouts** live in `app/ocr/b30/`: each `B30Layout` wraps
+  core-ocr's `CardLayout`, an explicit card origin list plus card-local
+  field windows, factor-scaled by `width / canvas_width`. Layout data is
+  JSON in `app/ocr/b30/layouts/`, except chieri_v4 which loads core-ocr's
+  packaged copy. `layout_probe.py` classifies
   a screenshot by aspect ratio plus background-independent structural
   checks; the probe is only a prefill proposal and never persists. The
   UI mirrors that: a manual flow switch and layout selector in the

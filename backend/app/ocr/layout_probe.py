@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING
 
 import cv2
 
+from .b30 import LAYOUTS
 from .b30.base import (
     ARCAEAONLINE_B30,
     ARCAEAONLINE_B50,
-    CHIERI_V4,
     YURISAKI_B50,
     B30Layout,
 )
@@ -38,10 +38,7 @@ ASPECT_TOLERANCE = 0.02
 
 # aspect ratios are width / height of the canonical canvases
 _ASPECTS: dict[str, float] = {
-    YURISAKI_B50.id: YURISAKI_B50.canvas[0] / YURISAKI_B50.canvas[1],
-    ARCAEAONLINE_B30.id: ARCAEAONLINE_B30.canvas[0] / ARCAEAONLINE_B30.canvas[1],
-    ARCAEAONLINE_B50.id: ARCAEAONLINE_B50.canvas[0] / ARCAEAONLINE_B50.canvas[1],
-    "chieri_v4": CHIERI_V4.canvas[0] / CHIERI_V4.canvas[1],
+    layout.id: layout.canvas[0] / layout.canvas[1] for layout in LAYOUTS.values()
 }
 
 # buckets whose aspect is shared with (or near) device screenshot aspects
@@ -66,26 +63,20 @@ def _white_fraction(img: MatLike, rect: tuple[int, int, int, int]) -> float:
 def _sample_rects(
     layout: B30Layout,
     size: tuple[int, int],
-    rows: list[int],
-    local: tuple[int, int, int, int],
+    field: str,
 ) -> list[tuple[int, int, int, int]]:
-    """Absolute rects of `local` (x, y, w, h in card-local canonical px)
-    on a spread of grid positions, for probing without checking every
-    card."""
-    lx, ly, lw, lh = local
+    """Absolute rects of card-local `field` (a layout JSON window),
+    sampled across the card list so the structural checks cover the whole
+    canvas."""
     factor = size[0] / layout.canvas[0]
+    offset = layout.field_rect(field, factor)
+    count = layout.component_count
+    indexes = sorted({round(i * (count - 1) / 8) for i in range(9)})
     rects = []
-    for row in rows:
-        for col in {0, layout.cols // 2, layout.cols - 1}:
-            card = layout.component_rect(row * layout.cols + col, size)
-            rects.append(
-                (
-                    round(card.x + lx * factor),
-                    round(card.y + ly * factor),
-                    round(lw * factor),
-                    round(lh * factor),
-                )
-            )
+    for index in indexes:
+        card = layout.component_rect(index, size)
+        rect = card + offset
+        rects.append((round(rect.x), round(rect.y), round(rect.w), round(rect.h)))
     return rects
 
 
@@ -93,26 +84,23 @@ def _check_yurisaki(img: MatLike) -> bool:
     layout = YURISAKI_B50
     size = (img.shape[1], img.shape[0])
     # card text area: white card background with dark text
-    rects = _sample_rects(layout, size, rows=[0, 3, 7], local=(140, 35, 230, 60))
+    rects = _sample_rects(layout, size, "text_area")
     fractions = [_white_fraction(img, r) for r in rects]
     return bool(fractions) and min(fractions) > 0.55
 
 
 def _check_arcaeaonline(layout: B30Layout, img: MatLike) -> bool:
     size = (img.shape[1], img.shape[0])
-    rows = [0, min(3, layout.rows - 1), layout.rows - 1]
     # rank badge: dark translucent panel with a small white "#N" glyph;
     # the panel brightness follows the background art, so only a wide
     # band is meaningful. Rejects white-card layouts outright.
-    badge_rects = _sample_rects(layout, size, rows=rows, local=(8, 22, 70, 45))
-    badge = [_white_fraction(img, r) for r in badge_rects]
+    badge = [_white_fraction(img, r) for r in _sample_rects(layout, size, "rank_badge")]
     if not badge or not all(0.02 <= f <= 0.30 for f in badge):
         return False
     # score strip: dark band with white digits; translucent, but dark
     # stays dominant on every sampled background
-    strip_rects = _sample_rects(layout, size, rows=rows, local=(97, 160, 215, 35))
     strips = []
-    for x, y, w, h in strip_rects:
+    for x, y, w, h in _sample_rects(layout, size, "score"):
         roi = img[y : y + h, x : x + w]
         if roi.size == 0:
             return False

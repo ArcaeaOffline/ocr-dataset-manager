@@ -35,6 +35,7 @@ datas = [
     (str(frontend_dir / "dist"), "web"),
     (str(backend_dir / "alembic.ini"), "."),
     (str(backend_dir / "migrations"), "migrations"),
+    (str(backend_dir / "app/ocr/b30/layouts"), "app/ocr/b30/layouts"),
 ]
 datas += collect_data_files("rapidocr")
 datas += collect_data_files("arcaea_offline_ocr")

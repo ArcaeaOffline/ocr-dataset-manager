@@ -14,7 +14,6 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from arcaea_offline_ocr.types import XYWHRect
 from typing_extensions import override
 
 from .base import (
@@ -37,11 +36,6 @@ _SINGLE_LETTERS = {"C": "NC", "F": "FR", "L": "TL"}
 
 
 class ArcaeaonlineOcr(B30LayoutOcr):
-    jacket_rect = XYWHRect(125, 25, 185, 170)
-    score_rect = XYWHRect(97, 160, 215, 35)
-    # the clear letter sits in a heart-shaped badge right of the score
-    clear_rect = XYWHRect(272, 178, 58, 62)
-
     def __init__(self, layout: B30Layout) -> None:
         self.layout = layout
 
@@ -61,16 +55,25 @@ class ArcaeaonlineOcr(B30LayoutOcr):
     def ocr_component(
         self, component_bgr: MatLike, index: int, providers: OcrProviders
     ) -> ComponentOcr:
+        layout = self.layout
         result = ComponentOcr(index=index)
 
         result.song_id, result.song_id_candidates = match_jacket(
-            component_bgr, self.jacket_rect, providers.ihdb
+            component_bgr,
+            layout.field_rect_on_card("jacket", component_bgr),
+            providers.ihdb,
         )
 
-        result.score = providers.rec_only_int(crop_card(component_bgr, self.score_rect))
+        score = crop_card(
+            component_bgr, layout.field_rect_on_card("score", component_bgr)
+        )
+        result.score = providers.rec_only_int(score)
 
+        # the clear letter sits in a heart-shaped badge right of the score
         letter = providers.raw.result_rec_only(
-            crop_card(component_bgr, self.clear_rect)
+            crop_card(
+                component_bgr, layout.field_rect_on_card("clear_badge", component_bgr)
+            )
         )
         result.clear_status = _letter_clear_status(letter)
         return result

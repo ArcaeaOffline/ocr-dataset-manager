@@ -1,19 +1,22 @@
 """B30/B50 screenshot layout definitions.
 
-Each supported bot rendering is described by a `B30Layout`: the canonical
-canvas the bot renders at, the card grid placed on it, and the per-field
-ROIs inside one card. All rects are authored against the canonical canvas
-in pixels and scaled at runtime by `factor = width / canvas_width` - bots
-render pixel-exact canvases, so the height follows from the width."""
+Card geometry lives in JSON: `layouts/` beside this module, core-ocr's
+packaged files for chieri_v4. All rects scale at runtime by
+`factor = width / canvas_width` - bots render pixel-exact canvases, so
+the height follows from the width."""
 
 from __future__ import annotations
 
+import json
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+from arcaea_offline_ocr.layouts import CardLayout, load_builtin_card_layout
 from arcaea_offline_ocr.types import XYWHRect
 
 if TYPE_CHECKING:
@@ -31,40 +34,49 @@ def crop_card(mat: MatLike, rect: XYWHRect) -> MatLike:
     return mat[y : y + h, x : x + w]
 
 
+def _layouts_dir() -> Path:
+    """Layout JSON location: beside this module in development, under the
+    PyInstaller bundle root when frozen. Frozen code lives in the PYZ
+    archive, so the data anchor is the bundle path odm.spec declares."""
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass is not None:
+            return Path(meipass) / "app" / "ocr" / "b30" / "layouts"
+    return Path(__file__).parent / "layouts"
+
+
 @dataclass(frozen=True)
 class B30Layout:
     id: str
-    # (width, height) of the bot's canonical rendering
-    canvas: tuple[int, int]
-    # first (top-left) card on the canonical canvas
-    card: XYWHRect
-    col_pitch: int
-    row_pitch: int
-    cols: int
-    rows: int
-    # cards the layout actually renders, when that differs from the grid
-    # shape (chieri's grid rects are locating metadata only; its scenario
-    # renders 30 B30 cards plus 3 extra entries)
-    expected_components: int | None = None
+    card_layout: CardLayout
+
+    @property
+    def canvas(self) -> tuple[int, int]:
+        # (width, height) of the bot's canonical rendering
+        return self.card_layout.canvas
+
+    @property
+    def card_size(self) -> tuple[float, float]:
+        return self.card_layout.card_size
 
     @property
     def component_count(self) -> int:
-        if self.expected_components is not None:
-            return self.expected_components
-        return self.cols * self.rows
+        return self.card_layout.component_count
 
     def component_rect(self, index: int, size: tuple[int, int]) -> XYWHRect:
-        """Card rect for grid `index` (row-major, zero-based) on an image
+        """Card rect for `index` (zero-based, in JSON order) on an image
         of the given (width, height)."""
-        row, col = divmod(index, self.cols)
-        factor = size[0] / self.canvas[0]
-        rect = XYWHRect(
-            self.card.x + self.col_pitch * col,
-            self.card.y + self.row_pitch * row,
-            self.card.w,
-            self.card.h,
+        return self.card_layout.card_rect(index, size[0] / self.canvas[0])
+
+    def field_rect(self, field: str, factor: float) -> XYWHRect:
+        return self.card_layout.field_rect(field, factor)
+
+    def field_rect_on_card(self, field: str, component_bgr: MatLike) -> XYWHRect:
+        """Card-local field window scaled against the cropped card's own
+        width, so renders at non-canonical sizes stay aligned."""
+        return self.card_layout.field_rect(
+            field, component_bgr.shape[1] / self.card_size[0]
         )
-        return rect * factor
 
 
 @dataclass
@@ -189,45 +201,17 @@ class B30LayoutOcr(ABC):
     ) -> ComponentOcr: ...
 
 
-YURISAKI_B50 = B30Layout(
-    id="yurisaki",
-    canvas=(1920, 1750),
-    card=XYWHRect(15, 420, 390, 135),
-    col_pitch=377,
-    row_pitch=125,
-    cols=5,
-    rows=10,
-)
+def _load_json_layout(id: str) -> B30Layout:
+    data = json.loads((_layouts_dir() / f"{id}.json").read_text(encoding="utf-8"))
+    return B30Layout(id, CardLayout.from_dict(data))
+
+
+YURISAKI_B50 = _load_json_layout("yurisaki")
 
 # one card design, two heights: the B30 variant renders 6 card rows, the
 # B50 one 10; the header above and the footer below the grid are identical.
 # The canvas height only feeds the aspect table - scaling is width-based.
-ARCAEAONLINE_B30 = B30Layout(
-    id="arcaeaonline_b30",
-    canvas=(1800, 2092),
-    card=XYWHRect(58, 340, 330, 250),
-    col_pitch=334,
-    row_pitch=272,
-    cols=5,
-    rows=6,
-)
-ARCAEAONLINE_B50 = B30Layout(
-    id="arcaeaonline_b50",
-    canvas=(1800, 3208),
-    card=XYWHRect(58, 340, 330, 250),
-    col_pitch=334,
-    row_pitch=272,
-    cols=5,
-    rows=10,
-)
+ARCAEAONLINE_B30 = _load_json_layout("arcaeaonline_b30")
+ARCAEAONLINE_B50 = _load_json_layout("arcaeaonline_b50")
 
-CHIERI_V4 = B30Layout(
-    id="chieri_v4",
-    canvas=(1800, 4400),
-    card=XYWHRect(107, 823, 502, 240),
-    col_pitch=542,
-    row_pitch=314,
-    cols=3,
-    rows=10,
-    expected_components=33,
-)
+CHIERI_V4 = B30Layout("chieri_v4", load_builtin_card_layout("chieri_v4"))

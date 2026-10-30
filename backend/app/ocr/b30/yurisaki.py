@@ -10,12 +10,12 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from arcaea_offline_ocr.types import XYWHRect
 from typing_extensions import override
 
 from ..parsing import parse_int, parse_pure_shiny
 from .base import (
     CLEAR_BADGE_LETTERS,
+    YURISAKI_B50,
     B30LayoutOcr,
     ComponentOcr,
     crop_card,
@@ -30,18 +30,7 @@ if TYPE_CHECKING:
 
 
 class YurisakiOcr(B30LayoutOcr):
-    jacket_rect = XYWHRect(20, 22, 92, 92)
-    score_rect = XYWHRect(115, 45, 270, 33)
-    # "Potential 10.7 > 12.8698  FR" - the badge is the trailing letters
-    badge_rect = XYWHRect(280, 76, 105, 26)
-    pure_rect = XYWHRect(113, 99, 118, 27)
-    far_rect = XYWHRect(222, 99, 44, 27)
-    lost_rect = XYWHRect(266, 99, 44, 27)
-    difficulty_bar_rect = XYWHRect(121, 29, 8, 17)
-
     def __init__(self) -> None:
-        from .base import YURISAKI_B50
-
         self.layout = YURISAKI_B50
 
     @override
@@ -60,29 +49,33 @@ class YurisakiOcr(B30LayoutOcr):
     def ocr_component(
         self, component_bgr: MatLike, index: int, providers: OcrProviders
     ) -> ComponentOcr:
+        layout = self.layout
+
+        def field(name: str) -> MatLike:
+            rect = layout.field_rect_on_card(name, component_bgr)
+            return crop_card(component_bgr, rect)
+
         result = ComponentOcr(index=index)
 
         result.song_id, result.song_id_candidates = match_jacket(
-            component_bgr, self.jacket_rect, providers.ihdb
+            component_bgr,
+            layout.field_rect_on_card("jacket", component_bgr),
+            providers.ihdb,
         )
 
-        result.score = parse_int(
-            providers.text.result(crop_card(component_bgr, self.score_rect))
-        )
+        result.score = parse_int(providers.text.result(field("score")))
 
-        badge = providers.raw.result_rec_only(crop_card(component_bgr, self.badge_rect))
+        # "Potential 10.7 > 12.8698  FR" - the badge is the trailing letters
+        badge = providers.raw.result_rec_only(field("clear_badge"))
         result.clear_status = _badge_clear_status(badge)
 
-        pure_text = providers.raw.result_rec_only(
-            crop_card(component_bgr, self.pure_rect)
+        result.pure, result.pure_shiny = parse_pure_shiny(
+            providers.raw.result_rec_only(field("pure"))
         )
-        result.pure, result.pure_shiny = parse_pure_shiny(pure_text)
-        result.far = providers.rec_only_int(crop_card(component_bgr, self.far_rect))
-        result.lost = providers.rec_only_int(crop_card(component_bgr, self.lost_rect))
+        result.far = providers.rec_only_int(field("far"))
+        result.lost = providers.rec_only_int(field("lost"))
 
-        rating, votes = vote_rating_class(
-            crop_card(component_bgr, self.difficulty_bar_rect)
-        )
+        rating, votes = vote_rating_class(field("difficulty_bar"))
         result.rating_class, result.rating_class_votes = rating, votes
         return result
 
