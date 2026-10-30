@@ -26,6 +26,8 @@ function onInput(event: Event) {
         title="OCR 预识别"
       />
     </span>
+    <!-- optional annotate-view crop: a window onto this field's ROI -->
+    <slot name="crop" />
     <input
       class="field-input mt-0.5"
       type="number"

@@ -57,6 +57,12 @@ can be reset any time by deleting `data/odm.sqlite3`.
 - **Small single-line ROIs must skip detection**: PaddleOCR det fails or
   garbles them; use `RapidOcrTextProvider.result_rec_only()` (replicate
   pad + 2x upscale + recognition only).
+- **Annotate view crops**: the device flow displays the black-edge-cropped
+  screenshot (`/images/{id}/cropped`) and CSS-crops each field window out
+  of it, positioned by `/images/{id}/device_rois` (rects rounded exactly
+  as the OCR chain rounds them, so crops show the pixels the OCR read).
+  The raw `/file` is the load fallback and the viewer's full-fidelity
+  source.
 - **Storage rule**: the database only stores human-confirmed values.
   OCR candidates, confidences, mask votes are recomputed on demand and
   cached in an LRU (`app/services/prefill.py`), never persisted.

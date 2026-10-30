@@ -43,6 +43,10 @@ export type PrefillResponse =
 
 export type B30LayoutInfo = Schemas["B30LayoutOut"];
 
+/** Field windows on the black-edge-cropped image. Rects are rounded
+ * exactly like the OCR chain rounds them. */
+export type DeviceRois = Schemas["DeviceRoisOut"];
+
 export type QueueKind = ImageItem["kind"];
 
 export type SongEntry = Schemas["SongOut"];
@@ -181,6 +185,15 @@ export const api = {
   b30CardUrl: (id: string, index: number, layout?: string) =>
     `/api/images/${id}/b30_card/${index}${layout ? `?layout=${layout}` : ""}`,
   getB30Layouts: () => unwrap(client.GET("/api/images/b30_layouts")),
+  // rois_type overrides T1/T2 detection. Omitted runs the selector.
+  // Readable (openapi-fetch's response mapper) flattens the schema's
+  // fixed-length tuples to arrays. The wire data carries the tuples
+  getDeviceRois: (id: string, roisType?: number) =>
+    unwrap(
+      client.GET("/api/images/{image_id}/device_rois", {
+        params: { path: { image_id: id }, query: { rois_type: roisType } },
+      }),
+    ) as Promise<DeviceRois>,
   createImport: (sourcePath: string, recursive: boolean) =>
     unwrap(
       client.POST("/api/imports", {
@@ -190,4 +203,6 @@ export const api = {
   listImports: () => unwrap(client.GET("/api/imports")),
   thumbUrl: (id: string) => `/api/images/${id}/thumb`,
   fileUrl: (id: string) => `/api/images/${id}/file`,
+  // black-edge-cropped copy of /file. ROI rects are coordinates on it
+  croppedUrl: (id: string) => `/api/images/${id}/cropped`,
 };

@@ -41,6 +41,8 @@ function onGroupUpdate(value: unknown) {
         title="OCR 预识别"
       />
     </span>
+    <!-- optional annotate-view crop: a window onto this field's ROI -->
+    <slot name="crop" />
     <ToggleGroupRoot
       type="single"
       class="mt-1 flex flex-wrap gap-1"

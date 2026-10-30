@@ -11,7 +11,7 @@ import re
 import sqlite3
 import threading
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypedDict, TypeVar
 
 import cv2
 import numpy as np
@@ -41,6 +41,16 @@ CAP = 100
 
 PrefillValue = int | str | None | list[int] | list[dict[str, str | float]]
 PrefillResult: TypeAlias = dict[str, PrefillValue]
+
+
+# geometry served to the annotate view; canvas is [width, height] of the
+# black-edge-cropped image the rects live on
+class DeviceRoisGeometry(TypedDict):
+    rois_type: int
+    canvas: list[int]
+    rects: dict[str, list[int]]
+
+
 # The early/late line renders "L<far_late> E<far_early>", extended with
 # "(P<pure_late>)" and "(P<pure_early>)" when PURE early/late display is
 # on; both forms occur on either layout. Parens are optional because rec
@@ -300,6 +310,71 @@ def warm(image_ids_and_paths: list[tuple[str, str]]) -> None:
                 get(image_id, relative_path)
         except Exception:
             logger.exception("prefill failed for %s", image_id)
+
+
+# ---- device annotate view ----------------------------------------------
+# The annotate page displays the black-edge-cropped screenshot and CSS-
+# crops each field window out of it. Both endpoints are cheap reads (one
+# imread + crop per request) and are uncached - the browser's immutable
+# cache is the only layer they need.
+
+
+def cropped_jpeg(relative_path: str) -> bytes:
+    """JPEG of the screenshot after CropBlackEdges. The rects served by
+    `device_rois` are coordinates on this image."""
+    from arcaea_offline_ocr.crop import CropBlackEdges  # noqa: PLC0415
+
+    img = _read_image(relative_path)
+    cropped = CropBlackEdges.crop_or_original(img)
+    ok, buf = cv2.imencode(".jpg", cropped, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+    if not ok:
+        msg = f"failed to encode cropped image: {relative_path}"
+        raise ValueError(msg)
+    return buf.tobytes()
+
+
+def device_rois(relative_path: str, rois_type: int | None = None) -> DeviceRoisGeometry:
+    """Field windows on the cropped image. Rects are rounded exactly like
+    the OCR chain rounds them (extractor and rec_only crops both use
+    `.rounded()`), so a client-side crop reproduces the pixels the OCR
+    reads. `rois_type` skips detection. None runs the T1/T2 selector and
+    raises when the layout is undetectable."""
+    from arcaea_offline_ocr.crop import CropBlackEdges  # noqa: PLC0415
+    from arcaea_offline_ocr.scenarios.device.rois.selector import (  # noqa: PLC0415
+        DeviceRoisAutoSelector,
+        DeviceRoisAutoSelectorResult,
+    )
+
+    img = _read_image(relative_path)
+    cropped = CropBlackEdges.crop_or_original(img)
+    if rois_type is None:
+        selected = DeviceRoisAutoSelector.select(cropped, None)
+        if selected is DeviceRoisAutoSelectorResult.UNKNOWN:
+            msg = f"device rois undetectable: {relative_path}"
+            raise ValueError(msg)
+        rois_type = 0 if selected is DeviceRoisAutoSelectorResult.T1 else 1
+    rois = (
+        DeviceRoisAutoT1(cropped.shape[1], cropped.shape[0])
+        if rois_type == 0
+        else DeviceRoisAutoT2(cropped.shape[1], cropped.shape[0])
+    )
+    return {
+        "rois_type": rois_type,
+        "canvas": [cropped.shape[1], cropped.shape[0]],
+        "rects": {
+            "score": list(rois.score.rounded()),
+            "pure": list(rois.pure.rounded()),
+            "far": list(rois.far.rounded()),
+            "lost": list(rois.lost.rounded()),
+            "max_recall": list(rois.max_recall.rounded()),
+            "pure_shiny": list(rois.pure_shiny.rounded()),
+            "high_score": list(rois.high_score.rounded()),
+            "high_score_delta": list(rois.high_score_delta.rounded()),
+            "early_late": list(rois.early_late.rounded()),
+            "rating_class": list(rois.rating_class.rounded()),
+            "clear_status": list(rois.clear_status.rounded()),
+        },
+    }
 
 
 # ---- B30/B50 ------------------------------------------------------------

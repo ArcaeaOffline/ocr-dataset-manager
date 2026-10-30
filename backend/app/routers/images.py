@@ -183,6 +183,12 @@ class B30ComponentPrefillOut(BaseModel):
     clear_status: int | None = None
 
 
+class DeviceRoisOut(BaseModel):
+    rois_type: int
+    canvas: tuple[int, int]
+    rects: dict[str, tuple[int, int, int, int]]
+
+
 @router.get("")
 def list_images(
     # SQLite reads a negative LIMIT as unbounded and a negative OFFSET
@@ -409,6 +415,39 @@ def get_b30_card(
     if jpeg is None:
         raise HTTPException(status_code=422, detail="not a B30 screenshot")
     return Response(content=jpeg, media_type="image/jpeg", headers=_CACHE_IMMUTABLE)
+
+
+@router.get(
+    "/{image_id}/cropped",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/jpeg": {}}}},
+)
+def get_cropped(image_id: str, session: Session = Depends(get_session)) -> Response:
+    """The screenshot after black-edge cropping. The rects served by
+    `/{image_id}/device_rois` are coordinates on this image."""
+    image = _require_image(session, image_id)
+    try:
+        jpeg = prefill.cropped_jpeg(image.relative_path)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return Response(content=jpeg, media_type="image/jpeg", headers=_CACHE_IMMUTABLE)
+
+
+@router.get("/{image_id}/device_rois")
+def get_device_rois(
+    image_id: str,
+    rois_type: Annotated[int, Query(ge=0, le=1)] | None = None,
+    session: Session = Depends(get_session),
+) -> DeviceRoisOut:
+    """Field windows on the cropped image, rounded as the OCR chain rounds
+    them. `rois_type` skips detection. Omitted runs the T1/T2 selector,
+    422 when the layout is undetectable."""
+    image = _require_image(session, image_id)
+    try:
+        geometry = prefill.device_rois(image.relative_path, rois_type)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return DeviceRoisOut.model_validate(geometry)
 
 
 def _b30_result_out(session: Session, image_id: str) -> B30ResultOut | None:

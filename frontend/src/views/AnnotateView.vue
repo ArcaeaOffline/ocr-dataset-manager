@@ -8,6 +8,7 @@ import {
   CLEAR_STATUS_NAMES,
   RATING_CLASS_NAMES,
   type DeviceResult,
+  type DeviceRois,
   type PartnerEntry,
   type Prefill,
   type ResultFields,
@@ -22,8 +23,10 @@ import ImageViewer from "@/features/annotate/components/ImageViewer.vue";
 import LoadingMask from "@/components/ui/LoadingMask.vue";
 import NumberField from "@/components/ui/NumberField.vue";
 import PartnerPicker from "@/features/annotate/components/PartnerPicker.vue";
+import RoiCrop from "@/features/annotate/components/RoiCrop.vue";
 import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
 import SongPicker from "@/features/annotate/components/SongPicker.vue";
+import type { FieldCrop } from "@/features/annotate/lib/roiCropStyle";
 import { computeWarnings, voteHint } from "@/features/annotate/lib/warnings";
 import { mergeFields } from "@/features/annotate/lib/mergeFields";
 import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
@@ -36,6 +39,9 @@ const route = useRoute();
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
 const viewerOpen = ref(false);
+// the main image displays the black-edge-cropped copy (the ROI geometry's
+// coordinate system). /file takes over when that copy fails to load
+const usingFallback = ref(false);
 
 interface AnnotateData {
   prefill: Prefill | null;
@@ -236,16 +242,61 @@ watch(imageId, () => {
   viewerOpen.value = false;
   flowOverride.value = null;
   devicePrefillFetched.value = false;
+  usingFallback.value = false;
 });
 
 const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_votes));
 const clearHint = computed(() => voteHint(data.value.prefill?.clear_status_votes));
 
+// field windows on the cropped image, refetched whenever rois_type
+// changes. null while unknown or undetectable - the form annotates
+// fine without crops
+const deviceRois = ref<DeviceRois | null>(null);
+
+watch([imageId, () => form.rois_type], async ([id, roisType]) => {
+  deviceRois.value = null;
+  if (roisType == null) return;
+  try {
+    const rois = await api.getDeviceRois(id, roisType);
+    if (id === imageId.value) deviceRois.value = rois;
+  } catch {
+    // no crops for this image - not an annotation-blocking failure
+  }
+});
+
+const crops = computed<Record<string, FieldCrop | undefined>>(() => {
+  const rois = deviceRois.value;
+  // rects are coordinates on the cropped image. On the /file fallback
+  // the coordinate system no longer matches, so crops must go dark
+  if (rois == null || usingFallback.value) return {};
+  const src = api.croppedUrl(imageId.value);
+  const crop = (rect: DeviceRois["rects"][string]): FieldCrop => ({
+    src,
+    rect,
+    canvas: rois.canvas,
+  });
+  const rects = rois.rects;
+  return {
+    score: crop(rects.score),
+    pure: crop(rects.pure),
+    far: crop(rects.far),
+    lost: crop(rects.lost),
+    max_recall: crop(rects.max_recall),
+    pure_shiny: crop(rects.pure_shiny),
+    high_score: crop(rects.high_score),
+    high_score_delta: crop(rects.high_score_delta),
+    rating_class: crop(rects.rating_class),
+    clear_status: crop(rects.clear_status),
+    // one strip for all four early/late inputs, rendered above their grid
+    early_late: crop(rects.early_late),
+  };
+});
+
 async function preloadNext() {
   try {
     const { id: nextId } = await api.getNextImage(imageId.value);
     if (nextId != null && nextId !== imageId.value) {
-      new Image().src = api.fileUrl(nextId);
+      new Image().src = api.croppedUrl(nextId);
     }
   } catch {
     // preload is best-effort
@@ -317,10 +368,11 @@ onUnmounted(() => {
       <FlowSelector :flow="flow" @switch="onFlowChange" />
       <div class="relative mt-2 overflow-hidden rounded border border-border bg-card">
         <img
-          :src="api.fileUrl(imageId)"
+          :src="usingFallback ? api.fileUrl(imageId) : api.croppedUrl(imageId)"
           class="mx-auto block max-w-full cursor-zoom-in lg:max-h-[calc(100dvh-6rem)] lg:object-contain"
           :alt="filename ?? imageId"
           @load="imgReady = true"
+          @error="usingFallback = true"
           @click="viewerOpen = true"
         />
         <div
@@ -374,13 +426,21 @@ onUnmounted(() => {
           :options="ratingClassOptions"
           :hint="ratingHint"
           :prefilled="prefilled.has('rating_class')"
-        />
+        >
+          <template #crop>
+            <RoiCrop v-if="crops.rating_class" v-bind="crops.rating_class" class="mt-1" />
+          </template>
+        </SegmentedSelect>
 
         <NumberField
           v-model="form.max_recall"
           label="max_recall"
           :prefilled="prefilled.has('max_recall')"
-        />
+        >
+          <template #crop>
+            <RoiCrop v-if="crops.max_recall" v-bind="crops.max_recall" class="mt-0.5" />
+          </template>
+        </NumberField>
 
         <SongPicker
           v-model="form.song_id"
@@ -395,36 +455,74 @@ onUnmounted(() => {
           :options="clearStatusOptions"
           :hint="clearHint"
           :prefilled="prefilled.has('clear_status')"
-        />
+        >
+          <template #crop>
+            <RoiCrop v-if="crops.clear_status" v-bind="crops.clear_status" class="mt-1" />
+          </template>
+        </SegmentedSelect>
 
-        <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')" />
+        <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')">
+          <template #crop>
+            <RoiCrop v-if="crops.score" v-bind="crops.score" class="mt-0.5" />
+          </template>
+        </NumberField>
 
         <div class="grid grid-cols-2 gap-2">
           <NumberField
             v-model="form.high_score"
             label="high_score"
             :prefilled="prefilled.has('high_score')"
-          />
+          >
+            <template #crop>
+              <RoiCrop v-if="crops.high_score" v-bind="crops.high_score" class="mt-0.5" />
+            </template>
+          </NumberField>
           <NumberField
             v-model="form.high_score_delta"
             label="high_score_delta"
             :prefilled="prefilled.has('high_score_delta')"
-          />
+          >
+            <template #crop>
+              <RoiCrop
+                v-if="crops.high_score_delta"
+                v-bind="crops.high_score_delta"
+                class="mt-0.5"
+              />
+            </template>
+          </NumberField>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
-          <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')" />
+          <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')">
+            <template #crop>
+              <RoiCrop v-if="crops.pure" v-bind="crops.pure" class="mt-0.5" />
+            </template>
+          </NumberField>
           <NumberField
             v-model="form.pure_shiny"
             label="pure_shiny"
             :prefilled="prefilled.has('pure_shiny')"
-          />
+          >
+            <template #crop>
+              <RoiCrop v-if="crops.pure_shiny" v-bind="crops.pure_shiny" class="mt-0.5" />
+            </template>
+          </NumberField>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
-          <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')" />
-          <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')" />
+          <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')">
+            <template #crop>
+              <RoiCrop v-if="crops.far" v-bind="crops.far" class="mt-0.5" />
+            </template>
+          </NumberField>
+          <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')">
+            <template #crop>
+              <RoiCrop v-if="crops.lost" v-bind="crops.lost" class="mt-0.5" />
+            </template>
+          </NumberField>
         </div>
+
+        <RoiCrop v-if="crops.early_late" v-bind="crops.early_late" />
 
         <div class="grid grid-cols-4 gap-2">
           <NumberField
