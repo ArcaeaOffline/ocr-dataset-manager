@@ -28,6 +28,8 @@ function onInput(event: Event) {
     </span>
     <!-- optional annotate-view crop: a window onto this field's ROI -->
     <slot name="crop" />
+    <!-- optional line above the input, e.g. the value as the screenshot renders it -->
+    <slot name="input-extra" />
     <input
       class="field-input mt-0.5"
       type="number"

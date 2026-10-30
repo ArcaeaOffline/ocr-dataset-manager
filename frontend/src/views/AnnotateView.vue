@@ -27,6 +27,11 @@ import RoiCrop from "@/features/annotate/components/RoiCrop.vue";
 import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
 import SongPicker from "@/features/annotate/components/SongPicker.vue";
 import type { FieldCrop } from "@/features/annotate/lib/roiCropStyle";
+import {
+  formatEarlyLate,
+  formatScore,
+  formatScoreDelta,
+} from "@/features/annotate/lib/displayFormat";
 import { computeWarnings, voteHint } from "@/features/annotate/lib/warnings";
 import { mergeFields } from "@/features/annotate/lib/mergeFields";
 import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
@@ -248,6 +253,11 @@ watch(imageId, () => {
 const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_votes));
 const clearHint = computed(() => voteHint(data.value.prefill?.clear_status_votes));
 
+const scoreDisplay = computed(() => formatScore(form.score));
+const highScoreDisplay = computed(() => formatScore(form.high_score));
+const scoreDeltaDisplay = computed(() => formatScoreDelta(form.high_score_delta));
+const earlyLateDisplay = computed(() => formatEarlyLate(form));
+
 // field windows on the cropped image, refetched whenever rois_type
 // changes. null while unknown or undetectable - the form annotates
 // fine without crops
@@ -465,6 +475,14 @@ onUnmounted(() => {
           <template #crop>
             <RoiCrop v-if="crops.score" v-bind="crops.score" class="mt-0.5" />
           </template>
+          <template #input-extra>
+            <span
+              v-if="scoreDisplay"
+              class="mt-0.5 block text-sm tabular-nums text-muted-foreground"
+            >
+              {{ scoreDisplay }}
+            </span>
+          </template>
         </NumberField>
 
         <div class="grid grid-cols-2 gap-2">
@@ -475,6 +493,14 @@ onUnmounted(() => {
           >
             <template #crop>
               <RoiCrop v-if="crops.high_score" v-bind="crops.high_score" class="mt-0.5" />
+            </template>
+            <template #input-extra>
+              <span
+                v-if="highScoreDisplay"
+                class="mt-0.5 block text-sm tabular-nums text-muted-foreground"
+              >
+                {{ highScoreDisplay }}
+              </span>
             </template>
           </NumberField>
           <NumberField
@@ -488,6 +514,14 @@ onUnmounted(() => {
                 v-bind="crops.high_score_delta"
                 class="mt-0.5"
               />
+            </template>
+            <template #input-extra>
+              <span
+                v-if="scoreDeltaDisplay"
+                class="mt-0.5 block text-sm tabular-nums text-muted-foreground"
+              >
+                {{ scoreDeltaDisplay }}
+              </span>
             </template>
           </NumberField>
         </div>
@@ -523,6 +557,9 @@ onUnmounted(() => {
         </div>
 
         <RoiCrop v-if="crops.early_late" v-bind="crops.early_late" />
+        <p v-if="earlyLateDisplay" class="mt-0.5 text-sm tabular-nums text-muted-foreground">
+          {{ earlyLateDisplay }}
+        </p>
 
         <div class="grid grid-cols-4 gap-2">
           <NumberField
