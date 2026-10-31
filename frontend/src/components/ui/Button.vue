@@ -19,7 +19,7 @@ const variantShortcut = computed(() =>
 </script>
 
 <template>
-  <Primitive as="button" :class="variantShortcut">
+  <Primitive as="button" type="button" :class="variantShortcut">
     <slot />
   </Primitive>
 </template>

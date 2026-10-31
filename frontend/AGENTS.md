@@ -32,10 +32,22 @@ pnpm format:check   # oxfmt (check only)
 ## Conventions
 
 - Interactive components compose reka-ui primitives for behavior and are
-  styled exclusively with UnoCSS semantic tokens. Reka state attributes
-  (`data-state`, `data-highlighted`, …) map to styles via UnoCSS
-  arbitrary variants (`data-[state=open]:…`). shadcn-vue is deliberately
-  not used — its component sources target Tailwind.
+  styled exclusively with UnoCSS semantic tokens. The token vocabulary
+  mirrors the shadcn set and lives in `src/style.css` and
+  `uno.config.ts` — extend it there instead of using literal Tailwind
+  palette colors (`amber-500`, `blue-500`, …). Palette literals are
+  reserved for imagery contexts such as masks over screenshots. Reka
+  state attributes (`data-state`, `data-highlighted`, …) map to styles
+  via UnoCSS arbitrary variants (`data-[state=open]:…`).
+- shadcn-vue is deliberately not used — its component sources target
+  Tailwind. Its conventions still apply: button variant names, a visible
+  `focus-visible` style on every interactive element, and disabled plus
+  placeholder styles on inputs.
+- Before writing a control, check `components/ui/` and the
+  `uno.config.ts` shortcuts. When a markup pattern appears a second
+  time, extract it — class clusters become shortcuts, component
+  structures become files in `components/ui/` (membership test above).
+- Comments are English. UI copy is Chinese.
 - Clicking the active segment of a segmented select clears the value
   back to unknown.
 - Features never import each other. Views compose them. No barrel

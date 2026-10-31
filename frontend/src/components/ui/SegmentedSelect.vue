@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends number | string | null">
 import { computed } from "vue";
 import { ToggleGroupItem, ToggleGroupRoot } from "reka-ui";
+import FieldLabel from "./FieldLabel.vue";
 
 const props = defineProps<{
   label: string;
@@ -33,14 +34,7 @@ function onGroupUpdate(value: unknown) {
 
 <template>
   <div>
-    <span class="field-label">
-      {{ props.label }}
-      <span
-        v-if="props.prefilled"
-        class="ml-0.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
-        title="OCR 预识别"
-      />
-    </span>
+    <FieldLabel :label="props.label" :prefilled="props.prefilled" />
     <!-- optional annotate-view crop: a window onto this field's ROI -->
     <slot name="crop" />
     <ToggleGroupRoot
@@ -53,7 +47,7 @@ function onGroupUpdate(value: unknown) {
         v-for="opt in props.options"
         :key="String(opt.value)"
         :value="opt.value ?? NULL_VALUE"
-        class="rounded border px-2.5 py-1 text-sm cursor-pointer data-[state=off]:border-border data-[state=off]:bg-secondary data-[state=off]:text-secondary-fg data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-fg"
+        class="segment-state px-2.5 py-1 text-sm"
       >
         {{ opt.label }}
       </ToggleGroupItem>

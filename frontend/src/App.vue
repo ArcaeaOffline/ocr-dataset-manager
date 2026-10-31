@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { Toaster } from "vue-sonner";
+import { ToggleGroupItem, ToggleGroupRoot } from "reka-ui";
 
 type ThemeChoice = "auto" | "light" | "dark";
 const THEME_KEY = "theme";
@@ -56,23 +57,22 @@ const themeOptions: { value: ThemeChoice; icon: string; title: string }[] = [
       </nav>
       <div class="ml-auto flex items-center gap-2">
         <span class="field-label hidden sm:inline">主题</span>
-        <div class="flex gap-1">
-          <button
+        <ToggleGroupRoot
+          type="single"
+          class="flex gap-1"
+          :model-value="theme"
+          @update:model-value="(value) => value && applyTheme(value as ThemeChoice)"
+        >
+          <ToggleGroupItem
             v-for="opt in themeOptions"
             :key="opt.value"
-            type="button"
-            class="cursor-pointer rounded border p-1.5"
-            :class="
-              theme === opt.value
-                ? 'border-primary bg-primary text-primary-fg'
-                : 'border-border bg-secondary text-secondary-fg'
-            "
+            :value="opt.value"
+            class="segment-state p-1.5"
             :title="opt.title"
-            @click="applyTheme(opt.value)"
           >
             <i :class="`${opt.icon} size-4`" />
-          </button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroupRoot>
       </div>
     </header>
     <RouterView />

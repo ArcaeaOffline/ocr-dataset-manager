@@ -88,7 +88,7 @@ onUnmounted(() => {
         <div class="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <!-- full path wraps on mobile instead of being ellipsized -->
           <span class="break-all sm:truncate" :title="b.source_path">{{ b.source_path }}</span>
-          <span v-if="b.finished_at == null" class="shrink-0 font-medium text-blue-500">
+          <span v-if="b.finished_at == null" class="shrink-0 font-medium text-info">
             进行中 {{ b.imported_count + b.skipped_count + b.failed_count }} /
             {{ b.file_count }}
           </span>

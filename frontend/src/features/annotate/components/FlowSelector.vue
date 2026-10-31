@@ -56,7 +56,7 @@ onUnmounted(() => observer?.disconnect());
     <CollapsibleTrigger as-child>
       <button
         type="button"
-        class="flex w-full cursor-pointer items-center justify-between gap-2 rounded border border-border bg-secondary px-2.5 py-1.5 text-sm text-secondary-fg"
+        class="flex w-full cursor-pointer items-center justify-between gap-2 rounded border border-border bg-secondary px-2.5 py-1.5 text-sm text-secondary-foreground"
       >
         <span
           class="flex items-center gap-1.5"

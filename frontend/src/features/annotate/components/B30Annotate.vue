@@ -203,8 +203,8 @@ watch(
 async function onLayoutChange(value: string | null) {
   if (value === layout.value) return;
   if (value == null) {
-    // 未知: local-only switch. Saved rows stay on the server, and saving
-    // requires a layout anyway
+    // the null option is local-only: saved rows stay on the server, and
+    // saving requires a layout anyway
     layout.value = null;
     for (const key of Object.keys(cardData)) {
       const entry = cardData[Number(key)];
@@ -435,17 +435,12 @@ onUnmounted(() => {
           <span class="text-sm tabular-nums text-muted-foreground">
             卡 {{ currentIndex + 1 }} / {{ componentCount || "?" }}
           </span>
-          <button
-            type="button"
-            class="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            title="查看完整截图"
-            @click="viewerOpen = true"
-          >
+          <button type="button" class="btn-ghost" title="查看完整截图" @click="viewerOpen = true">
             <i class="i-lucide-expand size-4" />
           </button>
           <button
             type="button"
-            class="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            class="btn-ghost"
             title="卡片总览"
             :disabled="layout == null"
             @click="overviewOpen = true"

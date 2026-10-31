@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { toast } from "vue-sonner";
+import { ToggleGroupItem, ToggleGroupRoot } from "reka-ui";
 import { api, type ImageItem, type QueueKind } from "@/api";
 import Button from "@/components/ui/Button.vue";
 import { useRequest } from "@/composables/useRequest";
@@ -19,6 +20,15 @@ const kindOptions: { value: QueueKind | null; label: string }[] = [
   { value: "b30", label: "B30/50" },
   { value: "unclassified", label: "分类未知" },
 ];
+
+// reka's pressed check treats a nullish group value as "nothing selected",
+// so the null option rides on a sentinel, like SegmentedSelect does
+const NULL_KIND = "__odm-null__";
+
+function onKindUpdate(value: unknown) {
+  page.value = 0;
+  kind.value = value === NULL_KIND || value == null ? null : (value as QueueKind);
+}
 
 const { data, loading, refresh } = useRequest(
   () => [uncheckedOnly.value, kind.value, hiddenOnly.value, page.value] as const,
@@ -95,25 +105,22 @@ async function toggleHidden(item: ImageItem) {
         />
         已隐藏
       </label>
-      <div v-if="!hiddenOnly" class="flex items-center gap-1">
-        <button
+      <ToggleGroupRoot
+        v-if="!hiddenOnly"
+        type="single"
+        class="flex items-center gap-1"
+        :model-value="kind ?? NULL_KIND"
+        @update:model-value="onKindUpdate"
+      >
+        <ToggleGroupItem
           v-for="opt in kindOptions"
           :key="String(opt.value)"
-          type="button"
-          class="cursor-pointer rounded border px-2 py-0.5 text-xs"
-          :class="
-            kind === opt.value
-              ? 'border-primary bg-primary text-primary-fg'
-              : 'border-border bg-secondary text-secondary-fg'
-          "
-          @click="
-            page = 0;
-            kind = opt.value;
-          "
+          :value="opt.value ?? NULL_KIND"
+          class="segment-state px-2 py-0.5 text-xs"
         >
           {{ opt.label }}
-        </button>
-      </div>
+        </ToggleGroupItem>
+      </ToggleGroupRoot>
       <span class="whitespace-nowrap text-muted-foreground">
         共 {{ total }} 张{{ hiddenOnly ? "（已隐藏）" : "" }}
       </span>
@@ -175,14 +182,14 @@ async function toggleHidden(item: ImageItem) {
             </div>
             <div
               v-else-if="isDone(item)"
-              class="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-white"
+              class="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 text-white"
             >
               <i class="i-lucide-check size-6" />
               <span class="text-xs">{{ item.kind === "b30" ? "B30 已标注" : "已标注" }}</span>
             </div>
             <div
               v-else-if="isDraft(item)"
-              class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-amber-400/80 px-2 py-1 text-xs text-black backdrop-blur-sm"
+              class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-warning-soft px-2 py-1 text-xs text-black backdrop-blur-sm"
             >
               <i class="i-lucide-pencil size-3.5" />
               草稿

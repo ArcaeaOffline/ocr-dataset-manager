@@ -1,9 +1,15 @@
 <script setup lang="ts">
+import FieldLabel from "./FieldLabel.vue";
+
 const props = defineProps<{
   label: string;
   modelValue: number | null;
   /** the value is the machine prefill proposal. Shows a marker by the label */
   prefilled?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -12,20 +18,14 @@ const emit = defineEmits<{
 
 function onInput(event: Event) {
   const raw = (event.target as HTMLInputElement).value.trim();
-  emit("update:modelValue", raw === "" ? null : Number(raw));
+  const parsed = raw === "" ? null : Number(raw);
+  emit("update:modelValue", parsed !== null && Number.isFinite(parsed) ? parsed : null);
 }
 </script>
 
 <template>
   <label class="block">
-    <span class="field-label">
-      {{ props.label }}
-      <span
-        v-if="props.prefilled"
-        class="ml-0.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
-        title="OCR 预识别"
-      />
-    </span>
+    <FieldLabel :label="props.label" :prefilled="props.prefilled" />
     <!-- optional annotate-view crop: a window onto this field's ROI -->
     <slot name="crop" />
     <!-- optional line above the input, e.g. the value as the screenshot renders it -->
@@ -33,6 +33,10 @@ function onInput(event: Event) {
     <input
       class="field-input mt-0.5"
       type="number"
+      :min="props.min"
+      :max="props.max"
+      :step="props.step"
+      :disabled="props.disabled"
       :value="props.modelValue ?? ''"
       @input="onInput"
     />
