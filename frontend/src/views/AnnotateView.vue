@@ -133,7 +133,7 @@ const { data, loading } = useRequest(
 );
 
 const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
-  "saveChecked" | "saveAndNext"
+  "save" | "saveAndNext"
 >(imageId, "device", () => loading.value);
 
 // saving a device annotation on a B30-classified image deletes its B30
@@ -324,15 +324,17 @@ async function save(): Promise<boolean> {
   }
 }
 
+// the checked state lives solely in the form (CheckedToggle); submit
+// buttons only choose between staying and advancing
 function saveAndNext() {
   // the form holds the previous image's values until the load lands
   if (loading.value) return;
   runCrossKindGuarded(() => void doSaveAndNext());
 }
 
-function saveChecked() {
+function saveNow() {
   if (loading.value) return;
-  runCrossKindGuarded(() => void doSaveChecked());
+  runCrossKindGuarded(() => void doSaveNow());
 }
 
 function doSaveAndNext(): Promise<void> {
@@ -341,10 +343,9 @@ function doSaveAndNext(): Promise<void> {
   });
 }
 
-function doSaveChecked(): Promise<void> {
-  form.checked = true;
-  return withBusy("saveChecked", async () => {
-    if (await save()) await goNext();
+function doSaveNow(): Promise<void> {
+  return withBusy("save", async () => {
+    await save();
   });
 }
 
@@ -603,25 +604,25 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button :disabled="busyAction !== null" @click="saveChecked">
-          <i
-            :class="
-              busyAction === 'saveChecked'
-                ? 'i-lucide-loader-circle size-4 animate-spin'
-                : 'i-lucide-check size-4'
-            "
-          />
-          确认并下一张
-        </Button>
-        <Button variant="secondary" :disabled="busyAction !== null" @click="saveAndNext">
+        <Button :disabled="busyAction !== null" @click="saveAndNext">
           <i
             :class="
               busyAction === 'saveAndNext'
                 ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-arrow-right size-4'
+            "
+          />
+          保存并下一张
+        </Button>
+        <Button variant="secondary" :disabled="busyAction !== null" @click="saveNow">
+          <i
+            :class="
+              busyAction === 'save'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
                 : 'i-lucide-save size-4'
             "
           />
-          保存草稿并下一张
+          保存
         </Button>
         <Button variant="secondary" :disabled="busyAction !== null" @click="skip">
           <i

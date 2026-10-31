@@ -128,7 +128,7 @@ const { data, loading } = useRequest(
 );
 
 const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
-  "saveChecked" | "saveDraft"
+  "save" | "saveAndNext"
 >(imageId, "b30", () => loading.value);
 
 catalog
@@ -291,8 +291,9 @@ const {
   cancel: cancelCrossKind,
 } = useGuardedAction(() => hasDeviceRow.value, imageId);
 
-async function save(checked: boolean): Promise<boolean> {
-  form.checked = checked;
+// the checked state lives solely in the form (CheckedToggle); submit
+// buttons only choose between staying and advancing
+async function save(): Promise<boolean> {
   const layoutId = layout.value;
   if (layoutId == null) {
     toast.error("布局未知，无法保存");
@@ -320,20 +321,20 @@ async function save(checked: boolean): Promise<boolean> {
   }
 }
 
-function saveChecked() {
-  // the form holds the previous image's values until the load lands
+function saveAndNext() {
+  // the form holds the previous card's values until the load lands
   if (loading.value) return;
-  runCrossKindGuarded(() => void doSaveChecked());
+  runCrossKindGuarded(() => void doSaveAndNext());
 }
 
-function saveDraft() {
+function saveNow() {
   if (loading.value) return;
-  runCrossKindGuarded(() => void doSaveDraft());
+  runCrossKindGuarded(() => void doSaveNow());
 }
 
-function doSaveChecked(): Promise<void> {
-  return withBusy("saveChecked", async () => {
-    if (!(await save(true))) return;
+function doSaveAndNext(): Promise<void> {
+  return withBusy("saveAndNext", async () => {
+    if (!(await save())) return;
     if (currentIndex.value >= componentCount.value - 1) {
       await goNext();
     } else {
@@ -342,9 +343,9 @@ function doSaveChecked(): Promise<void> {
   });
 }
 
-function doSaveDraft(): Promise<void> {
-  return withBusy("saveDraft", async () => {
-    await save(false);
+function doSaveNow(): Promise<void> {
+  return withBusy("save", async () => {
+    await save();
   });
 }
 
@@ -359,7 +360,7 @@ const ratingHint = computed(() =>
 
 function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === "Enter") {
-    saveChecked();
+    saveAndNext();
     return;
   }
   const target = event.target;
@@ -524,29 +525,29 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button :disabled="busyAction !== null || layout == null" @click="saveChecked">
+        <Button :disabled="busyAction !== null || layout == null" @click="saveAndNext">
           <i
             :class="
-              busyAction === 'saveChecked'
+              busyAction === 'saveAndNext'
                 ? 'i-lucide-loader-circle size-4 animate-spin'
-                : 'i-lucide-check size-4'
+                : 'i-lucide-arrow-right size-4'
             "
           />
-          确认并{{ currentIndex >= componentCount - 1 ? "下一图" : "下一卡" }}
+          保存并{{ currentIndex >= componentCount - 1 ? "下一图" : "下一卡" }}
         </Button>
         <Button
           variant="secondary"
           :disabled="busyAction !== null || layout == null"
-          @click="saveDraft"
+          @click="saveNow"
         >
           <i
             :class="
-              busyAction === 'saveDraft'
+              busyAction === 'save'
                 ? 'i-lucide-loader-circle size-4 animate-spin'
                 : 'i-lucide-save size-4'
             "
           />
-          保存草稿
+          保存
         </Button>
         <Button variant="secondary" :disabled="busyAction !== null" @click="skip">
           <i
@@ -556,7 +557,7 @@ onUnmounted(() => {
                 : 'i-lucide-skip-forward size-4'
             "
           />
-          跳过此图
+          跳过
         </Button>
       </div>
     </section>
