@@ -16,10 +16,10 @@ frontend/         vite + vue3 + UnoCSS SPA (pnpm).
 data/             gitignored runtime data: db, image store, thumbnails and others
 ```
 
-Note: when user provides real game screenshots or assets, NEVER expose
-the files into repository. Such files should be ignored in local `.git/info/exclude`
-(instead of `.gitignore`, do not add user preferences to global options)
-due to privacy and copyright issues.
+Note: never commit user-provided real game screenshots or assets, for
+privacy and copyright reasons. Such files are user-specific, so ignore
+them in the local `.git/info/exclude`, not the shared `.gitignore`,
+and not user-global ignore files.
 
 ## Commands
 
@@ -46,7 +46,7 @@ instead of skipping it silently.
 ## Conventions
 
 - Commit messages: conventional-commit style (`feat:`, `fix:`, `docs:`,
-  `chore:`), subject in English, body states what is here now — not the
+  `chore:`), subject in English, body states what is here now, not the
   history of how it got that way.
 - Code comments state current behavior and constraints only. No
   change-narration ("previously X", "no longer Y").
@@ -60,4 +60,5 @@ instead of skipping it silently.
 
 Every PR description must include a verification note: either who (a **HUMAN**)
 ran what and confirmed the behavior, or the literal string `No human verifications`.
-Never write a verification claim that did not happen or fully done by AI.
+Never write a verification claim for something that did not happen or
+was performed entirely by AI.

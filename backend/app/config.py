@@ -1,7 +1,7 @@
 """Path and server settings.
 
-Configuration semantics — precedence, path bases, the anchor
-directory — live in the README (Configuration). This module only
+Configuration semantics, e.g. precedence, path bases, the anchor
+directory live in the README (Configuration). This module only
 discovers, resolves and snapshots them.
 
 The module-level constants are a snapshot of the resolved settings

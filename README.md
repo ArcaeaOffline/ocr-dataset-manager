@@ -136,8 +136,8 @@ A non-writable data directory will raise a startup error.
 ## Packaging (Windows)
 
 `backend/scripts/package_windows.py` builds the frontend, then packs
-the backend with PyInstaller into a portable bundle — a folder around
-`odm.exe` that runs from anywhere:
+the backend with PyInstaller into a portable bundle, which is a folder
+around `odm.exe` that runs from anywhere:
 
 ```bash
 # from the repository root

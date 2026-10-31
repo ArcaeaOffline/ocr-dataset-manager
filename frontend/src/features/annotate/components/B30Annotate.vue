@@ -364,7 +364,7 @@ function onKeydown(event: KeyboardEvent) {
   }
   const target = event.target;
   // arrows flip cards, but text fields need them for the caret and
-  // role=group widgets (SegmentedSelect) for roving focus — yield to both
+  // role=group widgets (SegmentedSelect) for roving focus, yield to both
   const inTextField =
     target instanceof HTMLElement &&
     (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);

@@ -29,7 +29,7 @@ const selectedPartner = computed(() => {
 
 const partnersById = computed(() => new Map(props.partners.map((p) => [p.id, p])));
 
-// letter id first — it is the human-friendly form
+// keep human friendly letter id first
 function partnerLabel(p: PartnerEntry) {
   return p.name ? `${p.name} · ${p.id}` : p.id;
 }

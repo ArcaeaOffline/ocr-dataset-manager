@@ -35,8 +35,8 @@ export type B30Result = Omit<Schemas["B30ResultOut"], "components"> & {
 export type B30ComponentPrefill = Required<Schemas["B30ComponentPrefillOut"]>;
 
 // GET /{id}/prefill serializes with exclude_unset: the b30 variant
-// carries only `layout`, the device variant only `prefill` — a presence
-// split the schema cannot express, so the union is stated here
+// carries only `layout`, the device variant only `prefill`. That is a
+// presence split the schema cannot express, so the union is stated here
 export type PrefillResponse =
   | { kind: "b30"; layout: string }
   | { kind: "device"; prefill: Prefill };

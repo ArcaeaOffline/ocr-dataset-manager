@@ -1,8 +1,8 @@
 /* semantic design tokens, shadcn neutral palette (oklch).
    default follows the system preference; data-theme="light"/"dark" on
    :root pins one side. The dark block is duplicated for the override and
-   the media query — keep the two in sync. UnoCSS alpha modifiers drop on
-   var() colors, so color mixes are precomputed here */
+   the media query, so remember to keep the two in sync. UnoCSS alpha
+   modifiers drop on var() colors, so color mixes are precomputed here */
 :root {
   color-scheme: light;
   --background: oklch(1 0 0);
