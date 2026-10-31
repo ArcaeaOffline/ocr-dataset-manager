@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { toast } from "vue-sonner";
 import {
@@ -20,11 +20,15 @@ import CheckedToggle from "@/components/ui/CheckedToggle.vue";
 import ConfirmDialog from "@/components/ui/ConfirmDialog.vue";
 import FlowSelector from "./FlowSelector.vue";
 import ImageViewer from "./ImageViewer.vue";
+import Kbd from "@/components/ui/Kbd.vue";
 import LoadingMask from "@/components/ui/LoadingMask.vue";
 import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
+import ShortcutHelp from "./ShortcutHelp.vue";
 import SongPicker from "./SongPicker.vue";
 import { prefilledKeys, useFieldSources } from "@/composables/useFieldSources";
 import { useRequest } from "@/composables/useRequest";
+import { useShortcuts } from "@/composables/useShortcuts";
+import { CLEAR_KEYS, RATING_KEYS, fieldShortcuts } from "@/features/annotate/lib/fieldShortcuts";
 import { mergeFields } from "@/features/annotate/lib/mergeFields";
 import { useAnnotateActions } from "@/features/annotate/lib/useAnnotateActions";
 import { useGuardedAction } from "@/features/annotate/lib/useGuardedAction";
@@ -44,6 +48,7 @@ const currentIndex = ref(0);
 const cardReady = ref(false);
 const viewerOpen = ref(false);
 const overviewOpen = ref(false);
+const cheatsheetOpen = ref(false);
 
 interface CardData {
   prefill: B30ComponentPrefill | null;
@@ -87,9 +92,17 @@ const layoutOptions = computed(() => [
   { value: null, label: "未知" },
   ...layouts.value.map((l) => ({ value: l.id, label: l.id })),
 ]);
-const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({ value: i, label }));
+const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({
+  value: i,
+  label,
+  shortcut: RATING_KEYS[i],
+}));
 // bots render all six st3 clear states. EC/HC never appear on device screenshots
-const clearStatusOptions = CLEAR_STATUS_NAMES.map((label, i) => ({ value: i, label }));
+const clearStatusOptions = CLEAR_STATUS_NAMES.map((label, i) => ({
+  value: i,
+  label,
+  shortcut: CLEAR_KEYS[i],
+}));
 
 const componentCount = computed(() => {
   if (layout.value == null) return 0;
@@ -358,35 +371,41 @@ const ratingHint = computed(() =>
   voteHint(cardData[currentIndex.value]?.prefill?.rating_class_votes),
 );
 
-function onKeydown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === "Enter") {
-    saveAndNext();
-    return;
-  }
-  const target = event.target;
-  // arrows flip cards, but text fields need them for the caret and
-  // role=group widgets (SegmentedSelect) for roving focus, yield to both
-  const inTextField =
-    target instanceof HTMLElement &&
-    (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-  const inRovingFocusGroup =
-    target instanceof HTMLElement && target.closest('[role="group"]') != null;
-  if (event.key === "Escape" && !inTextField) {
-    viewerOpen.value = false;
-    overviewOpen.value = false;
-  }
-  if (!inTextField && !inRovingFocusGroup) {
-    if (event.key === "ArrowLeft") previousCard();
-    if (event.key === "ArrowRight") nextCard();
-  }
-}
+const shortcutsEnabled = computed(
+  () =>
+    !viewerOpen.value &&
+    !overviewOpen.value &&
+    !crossKindPending.value &&
+    pendingLayout.value === null &&
+    !cheatsheetOpen.value,
+);
 
-onMounted(() => {
-  window.addEventListener("keydown", onKeydown);
-});
-onUnmounted(() => {
-  window.removeEventListener("keydown", onKeydown);
-});
+useShortcuts(
+  () => [
+    { key: "enter", ctrl: true, allowInTextField: true, handler: saveAndNext },
+    { key: "s", ctrl: true, allowInTextField: true, handler: saveNow },
+    { key: "h", ctrl: true, handler: hideAndNext },
+    { key: "s", handler: skip },
+    { key: "arrowleft", handler: previousCard },
+    { key: "arrowright", handler: nextCard },
+    { key: "v", handler: () => (viewerOpen.value = true) },
+    {
+      key: "o",
+      enabled: () => layout.value !== null,
+      handler: () => (overviewOpen.value = true),
+    },
+    { key: "?", handler: () => (cheatsheetOpen.value = true) },
+    ...fieldShortcuts(
+      { get: () => form.rating_class, set: (value) => (form.rating_class = value) },
+      RATING_KEYS,
+    ),
+    ...fieldShortcuts(
+      { get: () => form.clear_status, set: (value) => (form.clear_status = value) },
+      CLEAR_KEYS,
+    ),
+  ],
+  { enabled: () => shortcutsEnabled.value },
+);
 </script>
 
 <template>
@@ -428,7 +447,12 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="mt-2 flex items-center justify-between gap-2">
-        <Button variant="secondary" :disabled="currentIndex === 0" @click="previousCard">
+        <Button
+          variant="secondary"
+          :disabled="currentIndex === 0"
+          shortcut="←"
+          @click="previousCard"
+        >
           <i class="i-lucide-arrow-left size-4" />
           上一卡
         </Button>
@@ -438,6 +462,7 @@ onUnmounted(() => {
           </span>
           <button type="button" class="btn-ghost" title="查看完整截图" @click="viewerOpen = true">
             <i class="i-lucide-expand size-4" />
+            <Kbd>V</Kbd>
           </button>
           <button
             type="button"
@@ -447,11 +472,13 @@ onUnmounted(() => {
             @click="overviewOpen = true"
           >
             <i class="i-lucide-layout-grid size-4" />
+            <Kbd>O</Kbd>
           </button>
         </div>
         <Button
           variant="secondary"
           :disabled="layout != null && currentIndex >= componentCount - 1"
+          shortcut="→"
           @click="nextCard"
         >
           下一卡
@@ -466,6 +493,7 @@ onUnmounted(() => {
           variant="secondary"
           class="shrink-0 text-xs"
           :disabled="busyAction !== null"
+          shortcut="Ctrl+H"
           @click="hideAndNext"
         >
           <i
@@ -525,7 +553,11 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button :disabled="busyAction !== null || layout == null" @click="saveAndNext">
+        <Button
+          :disabled="busyAction !== null || layout == null"
+          shortcut="Ctrl+Enter"
+          @click="saveAndNext"
+        >
           <i
             :class="
               busyAction === 'saveAndNext'
@@ -538,6 +570,7 @@ onUnmounted(() => {
         <Button
           variant="secondary"
           :disabled="busyAction !== null || layout == null"
+          shortcut="Ctrl+S"
           @click="saveNow"
         >
           <i
@@ -549,7 +582,7 @@ onUnmounted(() => {
           />
           保存
         </Button>
-        <Button variant="secondary" :disabled="busyAction !== null" @click="skip">
+        <Button variant="secondary" :disabled="busyAction !== null" shortcut="S" @click="skip">
           <i
             :class="
               busyAction === 'skip'
@@ -559,6 +592,9 @@ onUnmounted(() => {
           />
           跳过
         </Button>
+        <button type="button" class="btn-ghost" title="快捷键" @click="cheatsheetOpen = true">
+          <Kbd>?</Kbd>
+        </button>
       </div>
     </section>
 
@@ -590,6 +626,8 @@ onUnmounted(() => {
       "
       @confirm="confirmCrossKind"
     />
+
+    <ShortcutHelp v-model:open="cheatsheetOpen" />
 
     <ImageViewer
       :open="viewerOpen"

@@ -5,7 +5,8 @@ import FieldLabel from "./FieldLabel.vue";
 
 const props = defineProps<{
   label: string;
-  options: { value: T; label: string }[];
+  /** shortcut is the single-key binding shown as a small glyph per option */
+  options: { value: T; label: string; shortcut?: string }[];
   modelValue: T;
   /** shown below the segments, e.g. a low-confidence prefill warning */
   hint?: string | null;
@@ -47,8 +48,15 @@ function onGroupUpdate(value: unknown) {
         v-for="opt in props.options"
         :key="String(opt.value)"
         :value="opt.value ?? NULL_VALUE"
-        class="segment-state px-2.5 py-1 text-sm"
+        class="segment-state inline-flex items-center gap-1.5 px-2.5 py-1 text-sm"
       >
+        <span
+          v-if="opt.shortcut"
+          class="font-mono text-[11px] leading-none"
+          :class="opt.value === props.modelValue ? 'opacity-60' : 'text-muted-foreground'"
+        >
+          {{ opt.shortcut }}
+        </span>
         {{ opt.label }}
       </ToggleGroupItem>
     </ToggleGroupRoot>

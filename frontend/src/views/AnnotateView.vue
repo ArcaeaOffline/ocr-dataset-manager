@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { toast } from "vue-sonner";
 import {
@@ -20,12 +20,16 @@ import CheckedToggle from "@/components/ui/CheckedToggle.vue";
 import ConfirmDialog from "@/components/ui/ConfirmDialog.vue";
 import FlowSelector from "@/features/annotate/components/FlowSelector.vue";
 import ImageViewer from "@/features/annotate/components/ImageViewer.vue";
+import Kbd from "@/components/ui/Kbd.vue";
 import LoadingMask from "@/components/ui/LoadingMask.vue";
 import NumberField from "@/components/ui/NumberField.vue";
 import PartnerPicker from "@/features/annotate/components/PartnerPicker.vue";
 import RoiCrop from "@/features/annotate/components/RoiCrop.vue";
 import SegmentedSelect from "@/components/ui/SegmentedSelect.vue";
+import ShortcutHelp from "@/features/annotate/components/ShortcutHelp.vue";
 import SongPicker from "@/features/annotate/components/SongPicker.vue";
+import { useShortcuts } from "@/composables/useShortcuts";
+import { CLEAR_KEYS, RATING_KEYS, fieldShortcuts } from "@/features/annotate/lib/fieldShortcuts";
 import type { FieldCrop } from "@/features/annotate/lib/roiCropStyle";
 import {
   formatEarlyLate,
@@ -44,6 +48,7 @@ const route = useRoute();
 const imageId = computed(() => String(route.params.id));
 const imgReady = ref(false);
 const viewerOpen = ref(false);
+const cheatsheetOpen = ref(false);
 // the main image displays the black-edge-cropped copy (the ROI geometry's
 // coordinate system). /file takes over when that copy fails to load
 const usingFallback = ref(false);
@@ -87,11 +92,16 @@ const roisTypeOptions = [
   { value: 0, label: "T1" },
   { value: 1, label: "T2" },
 ];
-const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({ value: i, label }));
+const ratingClassOptions = RATING_CLASS_NAMES.map((label, i) => ({
+  value: i,
+  label,
+  shortcut: RATING_KEYS[i],
+}));
 // device screenshots never render easy/hard clear
 const clearStatusOptions = CLEAR_STATUS_NAMES.slice(0, 4).map((label, i) => ({
   value: i,
   label,
+  shortcut: CLEAR_KEYS[i],
 }));
 
 const { data, loading } = useRequest(
@@ -351,21 +361,34 @@ function doSaveNow(): Promise<void> {
 
 const warnings = computed(() => computeWarnings(form));
 
-function onKeydown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === "Enter") {
-    saveAndNext();
-  }
-  if (event.key === "Escape") {
-    viewerOpen.value = false;
-  }
-}
+// device bindings idle while the b30 flow renders its own shortcut set
+const shortcutsEnabled = computed(
+  () =>
+    flow.value === "device" &&
+    !viewerOpen.value &&
+    !crossKindPending.value &&
+    !cheatsheetOpen.value,
+);
 
-onMounted(() => {
-  window.addEventListener("keydown", onKeydown);
-});
-onUnmounted(() => {
-  window.removeEventListener("keydown", onKeydown);
-});
+useShortcuts(
+  () => [
+    { key: "enter", ctrl: true, allowInTextField: true, handler: saveAndNext },
+    { key: "s", ctrl: true, allowInTextField: true, handler: saveNow },
+    { key: "h", ctrl: true, handler: hideAndNext },
+    { key: "s", handler: skip },
+    { key: "v", handler: () => (viewerOpen.value = true) },
+    { key: "?", handler: () => (cheatsheetOpen.value = true) },
+    ...fieldShortcuts(
+      { get: () => form.rating_class, set: (value) => (form.rating_class = value) },
+      RATING_KEYS,
+    ),
+    ...fieldShortcuts(
+      { get: () => form.clear_status, set: (value) => (form.clear_status = value) },
+      CLEAR_KEYS.slice(0, 4),
+    ),
+  ],
+  { enabled: () => shortcutsEnabled.value },
+);
 </script>
 
 <template>
@@ -401,6 +424,7 @@ onUnmounted(() => {
           variant="secondary"
           class="shrink-0 text-xs"
           :disabled="busyAction !== null"
+          shortcut="Ctrl+H"
           @click="hideAndNext"
         >
           <i
@@ -604,7 +628,7 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button :disabled="busyAction !== null" @click="saveAndNext">
+        <Button :disabled="busyAction !== null" shortcut="Ctrl+Enter" @click="saveAndNext">
           <i
             :class="
               busyAction === 'saveAndNext'
@@ -614,7 +638,12 @@ onUnmounted(() => {
           />
           保存并下一张
         </Button>
-        <Button variant="secondary" :disabled="busyAction !== null" @click="saveNow">
+        <Button
+          variant="secondary"
+          :disabled="busyAction !== null"
+          shortcut="Ctrl+S"
+          @click="saveNow"
+        >
           <i
             :class="
               busyAction === 'save'
@@ -624,7 +653,7 @@ onUnmounted(() => {
           />
           保存
         </Button>
-        <Button variant="secondary" :disabled="busyAction !== null" @click="skip">
+        <Button variant="secondary" :disabled="busyAction !== null" shortcut="S" @click="skip">
           <i
             :class="
               busyAction === 'skip'
@@ -634,6 +663,9 @@ onUnmounted(() => {
           />
           跳过
         </Button>
+        <button type="button" class="btn-ghost" title="快捷键" @click="cheatsheetOpen = true">
+          <Kbd>?</Kbd>
+        </button>
       </div>
     </section>
 
@@ -660,5 +692,7 @@ onUnmounted(() => {
       "
       @confirm="confirmCrossKind"
     />
+
+    <ShortcutHelp v-model:open="cheatsheetOpen" />
   </div>
 </template>

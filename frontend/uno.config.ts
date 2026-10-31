@@ -51,12 +51,18 @@ export default defineConfig({
     "btn-destructive":
       "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium bg-destructive text-destructive-foreground hover:opacity-80 disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     "btn-ghost":
-      "grid size-8 shrink-0 cursor-pointer place-items-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded px-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     "btn-ghost-dark":
       "grid size-8 shrink-0 cursor-pointer place-items-center rounded text-white hover:bg-white/10 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     "segment-state":
       "cursor-pointer rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=off]:border-border data-[state=off]:bg-secondary data-[state=off]:text-secondary-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
     "combobox-item":
       "flex cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-accent",
+    "kbd-chip":
+      "inline-flex items-center rounded border border-border bg-muted px-1 py-0.5 font-mono text-[11px] leading-none text-muted-foreground",
+    // alpha utilities drop on var() colors (see src/style.css), so the
+    // translucent border is a color-mix literal instead
+    "kbd-on-primary":
+      "inline-flex items-center rounded border bg-transparent px-1 py-0.5 font-mono text-[11px] leading-none text-primary-foreground opacity-80 [border-color:color-mix(in_oklab,var(--primary-foreground)_35%,transparent)]",
   },
 });
