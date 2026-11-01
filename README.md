@@ -1,5 +1,7 @@
 # ocr-dataset-manager
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ArcaeaOffline/ocr-dataset-manager)
+
 > [!CAUTION]
 > This project is an **AI slop**.
 >
