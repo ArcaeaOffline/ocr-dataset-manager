@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-import { computed, ref, useSlots, watch } from "vue";
+import { computed, nextTick, ref, useId, useSlots, watch } from "vue";
 import {
   ComboboxAnchor,
   ComboboxContent,
@@ -19,6 +19,8 @@ const props = withDefaults(
     candidates: Candidate[];
     /** the value is the machine prefill proposal. Shows a marker by the label */
     prefilled?: boolean;
+    /** keyboard shortcut shown as a key cap on the panel trigger button */
+    shortcut?: string;
     /** free text is the value; this explains the empty-input meaning */
     placeholder: string;
     triggerIcon: string;
@@ -31,6 +33,8 @@ const props = withDefaults(
     panelItems: T[];
     /** both panel and dropdown filtering use this against the lowercased query */
     panelMatch: (item: T, query: string) => boolean;
+    /** entry id used by the panel's keyboard selection and listbox aria */
+    panelIdOf: (item: T) => string;
     /** caps the panel list length */
     panelLimit?: number;
     /** caps the dropdown options filtered from the catalog by the typed text;
@@ -79,6 +83,12 @@ function select(id: string) {
   text.value = id;
 }
 
+function openPanel() {
+  panelOpen.value = true;
+}
+
+defineExpose({ openPanel });
+
 const panelMatches = computed(() => {
   const q = query.value.trim().toLowerCase();
   const matched =
@@ -96,6 +106,59 @@ const textMatches = computed(() => {
     .filter((item) => props.panelMatch(item, q))
     .slice(0, props.textMatchLimit);
 });
+
+const activeIndex = ref(0);
+const panelListEl = ref<HTMLElement | null>(null);
+const listId = useId();
+
+const activeDescendantId = computed(() =>
+  panelMatches.value.length > 0 ? `${listId}-${activeIndex.value}` : undefined,
+);
+
+const optionId = (index: number) => `${listId}-${index}`;
+
+// reopening proposes the current text as the query to refine
+watch(panelOpen, (open) => {
+  if (!open) return;
+  query.value = text.value.trim();
+  activeIndex.value = 0;
+});
+
+// the highlight must stay valid for whatever the filter last produced
+watch(panelMatches, () => {
+  activeIndex.value = 0;
+});
+
+// the slot renders the entries, so locate the active one in the DOM
+watch([activeIndex, panelMatches], async () => {
+  await nextTick();
+  panelListEl.value?.querySelector('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
+});
+
+// with no dropdown rows to pick from, Enter opens the search panel
+// seeded with the typed text. With rows, reka's own Enter selects one
+function onInputEnter(event: KeyboardEvent) {
+  if (event.isComposing) return;
+  if (props.candidates.length > 0 || textMatches.value.length > 0) return;
+  panelOpen.value = true;
+}
+
+// ←/→ keep editing the query. ↑/↓ move the highlight and Enter picks it
+function onPanelKeydown(event: KeyboardEvent) {
+  if (event.isComposing) return;
+  const count = panelMatches.value.length;
+  if (event.key === "ArrowDown" && count > 0) {
+    event.preventDefault();
+    activeIndex.value = Math.min(count - 1, activeIndex.value + 1);
+  } else if (event.key === "ArrowUp" && count > 0) {
+    event.preventDefault();
+    activeIndex.value = Math.max(0, activeIndex.value - 1);
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    const match = panelMatches.value[activeIndex.value];
+    if (match) select(props.panelIdOf(match));
+  }
+}
 </script>
 
 <template>
@@ -116,11 +179,17 @@ const textMatches = computed(() => {
             class="field-input"
             :class="{ 'pr-8': !!slots.suffix }"
             :placeholder="props.placeholder"
+            @keydown.enter="onInputEnter"
           />
           <slot name="suffix" />
         </div>
       </label>
-      <Button variant="secondary" :title="props.triggerTitle" @click="panelOpen = true">
+      <Button
+        variant="secondary"
+        :title="props.triggerTitle"
+        :shortcut="props.shortcut"
+        @click="panelOpen = true"
+      >
         <i :class="`${props.triggerIcon} size-4`" />
         {{ props.triggerLabel }}
       </Button>
@@ -146,9 +215,32 @@ const textMatches = computed(() => {
     :sr-description="props.panelDescription"
     @update:open="panelOpen = $event"
   >
-    <input v-model="query" class="field-input" :placeholder="props.panelPlaceholder" autofocus />
-    <div class="mt-2 max-h-80 overflow-y-auto">
-      <slot name="panel" :matches="panelMatches" :select="select" />
+    <input
+      v-model="query"
+      class="field-input"
+      :placeholder="props.panelPlaceholder"
+      role="combobox"
+      aria-expanded="true"
+      aria-autocomplete="list"
+      :aria-controls="listId"
+      :aria-activedescendant="activeDescendantId"
+      autofocus
+      @keydown="onPanelKeydown"
+    />
+    <div
+      ref="panelListEl"
+      :id="listId"
+      role="listbox"
+      :aria-label="props.panelTitle"
+      class="mt-2 max-h-80 overflow-y-auto"
+    >
+      <slot
+        name="panel"
+        :matches="panelMatches"
+        :select="select"
+        :active-index="activeIndex"
+        :option-id="optionId"
+      />
       <div
         v-if="props.panelLoading"
         class="px-2 py-4 text-center text-sm text-muted-foreground"

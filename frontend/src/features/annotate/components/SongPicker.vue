@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useTemplateRef } from "vue";
 import { ComboboxItem } from "reka-ui";
 import type { Candidate, SongEntry } from "@/api";
 import ComboboxPicker from "@/components/ui/ComboboxPicker.vue";
+import { useShortcuts } from "@/composables/useShortcuts";
 
 const props = defineProps<{
   candidates: Candidate[];
@@ -23,10 +24,19 @@ const titleOf = computed(() => {
   const map = new Map(props.songs.map((s) => [s.id, s.title]));
   return (id: string) => map.get(id) ?? id;
 });
+
+const picker = useTemplateRef<{ openPanel: () => void }>("picker");
+
+// the dialog gate keeps Ctrl+K inert while any dialog (this panel
+// included) is open
+useShortcuts(() => [
+  { key: "k", ctrl: true, allowInTextField: true, handler: () => picker.value?.openPanel() },
+]);
 </script>
 
 <template>
   <ComboboxPicker
+    ref="picker"
     :candidates="props.candidates"
     :model-value="props.modelValue"
     :prefilled="props.prefilled"
@@ -35,11 +45,13 @@ const titleOf = computed(() => {
     trigger-icon="i-lucide-search"
     trigger-label="搜索"
     trigger-title="搜索全目录"
+    shortcut="Ctrl+K"
     panel-title="搜索歌曲目录"
     panel-placeholder="标题或 song_id…"
     panel-description="输入标题或 song_id 过滤，点击结果选择"
     :panel-items="props.songs"
     :panel-match="(s, q) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)"
+    :panel-id-of="(s) => s.id"
     :panel-limit="80"
     :panel-loading="props.loading ?? false"
     @update:model-value="emit('update:modelValue', $event)"
@@ -57,12 +69,17 @@ const titleOf = computed(() => {
         </span>
       </ComboboxItem>
     </template>
-    <template #panel="{ matches, select }">
+    <template #panel="{ matches, select, activeIndex, optionId }">
       <button
-        v-for="s in matches"
+        v-for="(s, i) in matches"
+        :id="optionId(i)"
         :key="s.id"
         type="button"
-        class="flex w-full items-baseline justify-between gap-3 rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+        role="option"
+        :aria-selected="i === activeIndex"
+        :data-active="i === activeIndex || undefined"
+        class="focus-ring flex w-full items-baseline justify-between gap-3 rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+        :class="{ 'bg-accent': i === activeIndex }"
         @click="select(s.id)"
       >
         <span class="truncate">{{ s.title }}</span>

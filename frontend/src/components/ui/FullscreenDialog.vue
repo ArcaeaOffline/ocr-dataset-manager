@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DialogContent, DialogDescription, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
+import { useDialogOpenTracker } from "@/composables/dialogOpen";
 
 const props = defineProps<{
   open: boolean;
@@ -10,6 +11,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ close: [] }>();
+
+useDialogOpenTracker(() => props.open);
 </script>
 
 <template>

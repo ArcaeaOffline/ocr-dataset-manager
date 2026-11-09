@@ -57,6 +57,7 @@ function candidateLabel(imageId: string) {
     :panel-match="
       (p, q) => p.id.toLowerCase().includes(q) || (p.name ?? '').toLowerCase().includes(q)
     "
+    :panel-id-of="(p) => p.id"
     :text-match-limit="8"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -102,13 +103,18 @@ function candidateLabel(imageId: string) {
         </ComboboxItem>
       </template>
     </template>
-    <template #panel="{ matches, select }">
+    <template #panel="{ matches, select, activeIndex, optionId }">
       <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
         <button
-          v-for="p in matches"
+          v-for="(p, i) in matches"
+          :id="optionId(i)"
           :key="p.id"
           type="button"
-          class="rounded border border-border p-1 hover:border-ring"
+          role="option"
+          :aria-selected="i === activeIndex"
+          :data-active="i === activeIndex || undefined"
+          class="focus-ring rounded border border-border p-1 hover:border-ring"
+          :class="{ 'border-ring': i === activeIndex }"
           @click="select(p.id)"
         >
           <img

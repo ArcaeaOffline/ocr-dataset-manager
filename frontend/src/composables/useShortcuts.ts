@@ -1,4 +1,5 @@
 import { onMounted, onUnmounted } from "vue";
+import { openDialogCount } from "./dialogOpen";
 
 export interface ShortcutBinding {
   /** event.key, matched case-insensitively */
@@ -59,20 +60,23 @@ function inRovingFocusGroup(target: EventTarget | null): boolean {
 /**
  * Registers window-level keyboard shortcuts for the calling component.
  * The binding getter runs per event, so it may close over changing
- * refs. Everything goes inert while `enabled` is false (open dialogs,
- * an inactive flow, ...); IME composition always wins. Matched events
- * are preventDefault-ed, which is what keeps Ctrl+S away from the
- * browser's save dialog.
+ * refs. Everything goes inert while `enabled` is false. Everything also
+ * goes inert while any dialog is open, per {@link openDialogCount}: page
+ * bindings must not leak under a modal. Overlay-owned bindings opt out
+ * with `dialogGated: false`. IME composition always wins. Matched
+ * events are preventDefault-ed, which is what keeps Ctrl+S away from
+ * the browser's save dialog.
  */
 export function useShortcuts(
   getBindings: () => ShortcutBinding[],
-  options: { enabled?: () => boolean } = {},
+  options: { enabled?: () => boolean; dialogGated?: boolean } = {},
 ): void {
   function onKeydown(event: KeyboardEvent) {
     // one action per physical press: auto-repeat would flip toggle
     // bindings between value and null at typing speed
     if (event.repeat) return;
     if (event.isComposing) return;
+    if (options.dialogGated !== false && openDialogCount.value > 0) return;
     if (options.enabled && !options.enabled()) return;
     const binding = matchShortcut(event, getBindings());
     if (binding == null) return;

@@ -33,6 +33,7 @@ const groups: HelpGroup[] = [
     rows: [
       { label: "rating_class 难度", keys: ["1-5"] },
       { label: "clear_status 状态", keys: ["L", "C", "F", "P", "E", "H"] },
+      { label: "确认开关", keys: ["T"] },
     ],
   },
   {
@@ -42,6 +43,15 @@ const groups: HelpGroup[] = [
       { label: "查看原图", keys: ["V"] },
       { label: "卡片总览 (B30)", keys: ["O"] },
       { label: "快捷键速查", keys: ["?"] },
+    ],
+  },
+  {
+    title: "弹层",
+    rows: [
+      { label: "歌曲搜索", keys: ["Ctrl+K"] },
+      { label: "面板内移动并选中", keys: ["↑", "↓", "Enter"] },
+      { label: "总览内移动并选中 (B30)", keys: ["←", "→", "↑", "↓", "Enter"] },
+      { label: "查看器缩放", keys: ["+", "-"] },
     ],
   },
 ];

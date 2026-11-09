@@ -371,41 +371,30 @@ const ratingHint = computed(() =>
   voteHint(cardData[currentIndex.value]?.prefill?.rating_class_votes),
 );
 
-const shortcutsEnabled = computed(
-  () =>
-    !viewerOpen.value &&
-    !overviewOpen.value &&
-    !crossKindPending.value &&
-    pendingLayout.value === null &&
-    !cheatsheetOpen.value,
-);
-
-useShortcuts(
-  () => [
-    { key: "enter", ctrl: true, allowInTextField: true, handler: saveAndNext },
-    { key: "s", ctrl: true, allowInTextField: true, handler: saveNow },
-    { key: "h", ctrl: true, handler: hideAndNext },
-    { key: "s", handler: skip },
-    { key: "arrowleft", handler: previousCard },
-    { key: "arrowright", handler: nextCard },
-    { key: "v", handler: () => (viewerOpen.value = true) },
-    {
-      key: "o",
-      enabled: () => layout.value !== null,
-      handler: () => (overviewOpen.value = true),
-    },
-    { key: "?", handler: () => (cheatsheetOpen.value = true) },
-    ...fieldShortcuts(
-      { get: () => form.rating_class, set: (value) => (form.rating_class = value) },
-      RATING_KEYS,
-    ),
-    ...fieldShortcuts(
-      { get: () => form.clear_status, set: (value) => (form.clear_status = value) },
-      CLEAR_KEYS,
-    ),
-  ],
-  { enabled: () => shortcutsEnabled.value },
-);
+useShortcuts(() => [
+  { key: "enter", ctrl: true, allowInTextField: true, handler: saveAndNext },
+  { key: "s", ctrl: true, allowInTextField: true, handler: saveNow },
+  { key: "h", ctrl: true, handler: hideAndNext },
+  { key: "s", handler: skip },
+  { key: "arrowleft", handler: previousCard },
+  { key: "arrowright", handler: nextCard },
+  { key: "v", handler: () => (viewerOpen.value = true) },
+  {
+    key: "o",
+    enabled: () => layout.value !== null,
+    handler: () => (overviewOpen.value = true),
+  },
+  { key: "?", handler: () => (cheatsheetOpen.value = true) },
+  ...fieldShortcuts(
+    { get: () => form.rating_class, set: (value) => (form.rating_class = value) },
+    RATING_KEYS,
+  ),
+  ...fieldShortcuts(
+    { get: () => form.clear_status, set: (value) => (form.clear_status = value) },
+    CLEAR_KEYS,
+  ),
+  { key: "t", handler: () => (form.checked = !form.checked) },
+]);
 </script>
 
 <template>

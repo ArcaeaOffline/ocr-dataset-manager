@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import FullscreenDialog from "@/components/ui/FullscreenDialog.vue";
+import { useShortcuts } from "@/composables/useShortcuts";
 
 const props = defineProps<{
   open: boolean;
@@ -21,6 +22,25 @@ watch(
     if (opened) zoomIdx.value = 0;
   },
 );
+
+function zoomIn() {
+  if (zoomIdx.value < ZOOM_LEVELS.length - 1) zoomIdx.value++;
+}
+
+function zoomOut() {
+  if (zoomIdx.value > 0) zoomIdx.value--;
+}
+
+// "=" is the unshifted "+" key. This dialog counts as open, so the
+// composable-wide gate must stay off
+useShortcuts(
+  () => [
+    { key: "+", handler: zoomIn },
+    { key: "=", handler: zoomIn },
+    { key: "-", handler: zoomOut },
+  ],
+  { enabled: () => props.open, dialogGated: false },
+);
 </script>
 
 <template>
@@ -34,7 +54,7 @@ watch(
       <span class="truncate text-xs">{{ props.label }}</span>
     </template>
     <template #actions>
-      <button type="button" class="btn-ghost-dark" :disabled="zoomIdx === 0" @click="zoomIdx--">
+      <button type="button" class="btn-ghost-dark" :disabled="zoomIdx === 0" @click="zoomOut">
         <i class="i-lucide-zoom-out size-4" />
       </button>
       <span class="w-8 text-center text-xs tabular-nums"> {{ ZOOM_LEVELS[zoomIdx] }}x </span>
@@ -42,7 +62,7 @@ watch(
         type="button"
         class="btn-ghost-dark"
         :disabled="zoomIdx === ZOOM_LEVELS.length - 1"
-        @click="zoomIdx++"
+        @click="zoomIn"
       >
         <i class="i-lucide-zoom-in size-4" />
       </button>

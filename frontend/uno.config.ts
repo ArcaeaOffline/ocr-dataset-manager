@@ -58,6 +58,7 @@ export default defineConfig({
       "cursor-pointer rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=off]:border-border data-[state=off]:bg-secondary data-[state=off]:text-secondary-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
     "combobox-item":
       "flex cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm data-[highlighted]:bg-accent",
+    "focus-ring": "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     "kbd-chip":
       "inline-flex items-center rounded border border-border bg-muted px-1 py-0.5 font-mono text-[11px] leading-none text-muted-foreground",
     // alpha utilities drop on var() colors (see src/style.css), so the

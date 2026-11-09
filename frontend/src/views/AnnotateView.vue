@@ -361,15 +361,8 @@ function doSaveNow(): Promise<void> {
 
 const warnings = computed(() => computeWarnings(form));
 
-// device bindings idle while the b30 flow renders its own shortcut set
-const shortcutsEnabled = computed(
-  () =>
-    flow.value === "device" &&
-    !viewerOpen.value &&
-    !crossKindPending.value &&
-    !cheatsheetOpen.value,
-);
-
+// this setup runs for both flows, so the device bindings idle while the
+// b30 flow renders its own shortcut set
 useShortcuts(
   () => [
     { key: "enter", ctrl: true, allowInTextField: true, handler: saveAndNext },
@@ -386,8 +379,9 @@ useShortcuts(
       { get: () => form.clear_status, set: (value) => (form.clear_status = value) },
       CLEAR_KEYS.slice(0, 4),
     ),
+    { key: "t", handler: () => (form.checked = !form.checked) },
   ],
-  { enabled: () => shortcutsEnabled.value },
+  { enabled: () => flow.value === "device" },
 );
 </script>
 
