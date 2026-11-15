@@ -15,10 +15,14 @@ def rank_candidates(
 ) -> tuple[str | None, list[dict[str, str | float]]]:
     """Merge the per-hash-type lookups into one ranking.
 
-    An id matched by several hash types gets one entry whose confidence
-    is the weighted average over the types it actually matched with
-    (pHash/DCT weighs 4, difference 2, average 1). Returns
-    the top id and the top CANDIDATE_COUNT distinct ids."""
+    Each hash type is one evidence source: pHash/DCT weighs 4,
+    difference 2, average 1. A result without a hash type counts as one
+    weight-1 source. A candidate's score is the confidence it earned
+    from the sources it matched, divided by the total weight of all
+    sources in the result set. A candidate matched by every type
+    therefore scores its weighted average, while one matched by fewer
+    sources scores proportionally to the weight it earned. Returns the
+    top id and the top CANDIDATE_COUNT distinct ids."""
     from arcaea_offline_ocr.providers.ihdb import ImageHashType  # noqa: PLC0415
 
     weights = {
@@ -27,15 +31,24 @@ def rank_candidates(
         ImageHashType.DCT: 4,
     }
     by_id: dict[str, list[tuple[int, float]]] = {}
+    has_typed = has_untyped = False
     for r in results:
-        # chieri results arrive as the base ImageIdProviderResult, which
-        # carries no hash type. Those weigh 1 like single-type matches
+        # not every ImageIdProvider carries per-hash-type results; a
+        # result without one weighs 1 as a single source
         hash_type = getattr(r, "image_hash_type", None)
-        weight = 1 if hash_type is None else weights.get(hash_type, 1)
+        if hash_type is None:
+            has_untyped = True
+            weight = 1
+        else:
+            has_typed = True
+            weight = weights.get(hash_type, 1)
         by_id.setdefault(r.image_id, []).append((weight, r.confidence))
+    total_weight = (sum(weights.values()) if has_typed else 0) + (
+        1 if has_untyped else 0
+    )
     ranked = sorted(
         (
-            (image_id, sum(w * c for w, c in m) / sum(w for w, _ in m))
+            (image_id, sum(w * c for w, c in m) / total_weight)
             for image_id, m in by_id.items()
         ),
         key=lambda it: it[1],
