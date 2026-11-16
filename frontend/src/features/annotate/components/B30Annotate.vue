@@ -140,7 +140,7 @@ const { data, loading } = useRequest(
   { initialData: null },
 );
 
-const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
+const { busyAction, withBusy, goNext, goPrev, skip, hideAndNext } = useAnnotateActions<
   "save" | "saveAndNext"
 >(imageId, "b30", () => loading.value);
 
@@ -542,6 +542,16 @@ useShortcuts(() => [
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" :disabled="busyAction !== null" @click="goPrev">
+          <i
+            :class="
+              busyAction === 'prev'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-arrow-left size-4'
+            "
+          />
+          上一张
+        </Button>
         <Button
           :disabled="busyAction !== null || layout == null"
           shortcut="Ctrl+Enter"

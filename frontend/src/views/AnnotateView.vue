@@ -142,7 +142,7 @@ const { data, loading } = useRequest(
   },
 );
 
-const { busyAction, withBusy, goNext, skip, hideAndNext } = useAnnotateActions<
+const { busyAction, withBusy, goNext, goPrev, skip, hideAndNext, preloadNext } = useAnnotateActions<
   "save" | "saveAndNext"
 >(imageId, "device", () => loading.value);
 
@@ -311,17 +311,6 @@ const crops = computed<Record<string, FieldCrop | undefined>>(() => {
     early_late: crop(rects.early_late),
   };
 });
-
-async function preloadNext() {
-  try {
-    const { id: nextId } = await api.getNextImage(imageId.value);
-    if (nextId != null && nextId !== imageId.value) {
-      new Image().src = api.croppedUrl(nextId);
-    }
-  } catch {
-    // preload is best-effort
-  }
-}
 
 async function save(): Promise<boolean> {
   try {
@@ -622,6 +611,16 @@ useShortcuts(
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" :disabled="busyAction !== null" @click="goPrev">
+          <i
+            :class="
+              busyAction === 'prev'
+                ? 'i-lucide-loader-circle size-4 animate-spin'
+                : 'i-lucide-arrow-left size-4'
+            "
+          />
+          上一张
+        </Button>
         <Button :disabled="busyAction !== null" shortcut="Ctrl+Enter" @click="saveAndNext">
           <i
             :class="

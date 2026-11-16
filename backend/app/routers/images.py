@@ -118,6 +118,13 @@ class ImageListOut(BaseModel):
     items: list[ImageOut]
 
 
+class ImageCountsOut(BaseModel):
+    all: int
+    unchecked: int
+    checked: int
+    hidden: int
+
+
 class HiddenIn(BaseModel):
     hidden: bool
 
@@ -195,40 +202,32 @@ def list_images(
     # as 0, so the lower bounds are enforced here rather than clamped
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1)] = 50,
-    unchecked_only: bool = False,
+    category: queues.ImageCategory = "all",
     kind: queues.QueueKind | None = None,
-    hidden: Literal["only"] | None = None,
+    order_by: queues.SortKey = "created_at",
+    direction: queues.SortDirection = "desc",
     session: Session = Depends(get_session),
 ) -> ImageListOut:
-    """`hidden` absent: exclude hidden images. `hidden=only`: list only
-    hidden ones."""
+    """`category=hidden` lists only hidden images (kind is ignored
+    there - hidden images belong to no queue). The other categories
+    exclude them. Ordering is the key column with NULLs last, tie-broken
+    by the id in the same direction."""
     limit = min(limit, 200)
-    hidden_condition = (
-        Image.hidden.is_(False) if hidden is None else Image.hidden.is_(True)
-    )
+    conditions: list[ColumnElement[bool]]
+    if category == "hidden":
+        conditions = [Image.hidden.is_(True)]
+    else:
+        conditions = [Image.hidden.is_(False)]
+        if kind is not None:
+            conditions.append(queues.KIND_FILTERS[kind])
+        if category == "unchecked":
+            conditions.append(queues.unchecked_view_filter(kind))
+        elif category == "checked":
+            conditions.append(~queues.unchecked_view_filter(kind))
     device_sq = (
         select(DeviceResult.image_id).where(DeviceResult.image_id == Image.id).exists()
     )
     b30_sq = select(B30Result.image_id).where(B30Result.image_id == Image.id).exists()
-    conditions: list[ColumnElement[bool]] = [hidden_condition]
-    if kind is not None:
-        conditions.append(queues.KIND_FILTERS[kind])
-    if unchecked_only:
-        # a hybrid image presents as device (queues.kind_of). Without
-        # ~device_sq the b30 disjuncts would pull checked device images
-        # into the unchecked views
-        if kind == "b30":
-            conditions.append(queues.b30_done_filter() & ~device_sq)
-        elif kind is None:
-            conditions.append(
-                (queues.unchecked_filter() & ~b30_sq)
-                | (queues.b30_done_filter() & ~device_sq)
-            )
-        else:
-            # device queue: a draft row (checked=false) counts as
-            # unchecked just like a missing row. B30-classified images
-            # belong to the B30 queue instead
-            conditions.append(queues.unchecked_filter() & ~b30_sq)
     stmt = select(
         Image,
         OriginalFilename.original_filename,
@@ -245,7 +244,9 @@ def list_images(
         select(func.count(Image.id)).select_from(Image).where(*conditions)
     )
     rows = session.execute(
-        stmt.order_by(Image.created_at.desc()).offset(offset).limit(limit)
+        stmt.order_by(*queues.order_exprs(order_by, direction))
+        .offset(offset)
+        .limit(limit)
     ).all()
     progress = queues.b30_progress_map(session, [row[0].id for row in rows])
     items = []
@@ -276,6 +277,18 @@ def list_b30_layouts() -> list[B30LayoutOut]:
         B30LayoutOut(id=layout.id, component_count=layout.component_count)
         for layout in LAYOUTS.values()
     ]
+
+
+# declared before /{image_id} so "counts" is not captured as an image id
+@router.get("/counts")
+def count_images(
+    kind: queues.QueueKind | None = None,
+    session: Session = Depends(get_session),
+) -> ImageCountsOut:
+    """Category totals for the queue sidebar. all/unchecked/checked
+    follow the kind filter and partition the visible set. The hidden
+    total never does (hidden images belong to no queue)."""
+    return ImageCountsOut.model_validate(queues.count_categories(session, kind))
 
 
 def _require_image(session: Session, image_id: str) -> Image:
@@ -330,16 +343,40 @@ def set_image_hidden(
 
 
 @router.get("/{image_id}/next")
-def get_next_unchecked(
+def get_next_image(
     image_id: str,
-    kind: Literal["device", "b30"] = "device",
+    flow: queues.AdjacentFlow = "device",
+    category: queues.AdjacentCategory = "unchecked",
+    order_by: queues.SortKey = "created_at",
+    direction: queues.SortDirection = "desc",
     session: Session = Depends(get_session),
 ) -> NextImageOut:
-    """Next unchecked image in queue order (newest first), starting after
-    `image_id` and wrapping to the queue head. `{"id": None}` when no
-    unchecked image remains."""
+    """Adjacent image in queue order, starting after `image_id` and
+    wrapping around. Traversal follows the annotate flow (device or
+    b30), not the listing's kind filter; `category` picks which slice of
+    the flow's queue to walk. `{"id": None}` when the queue is empty."""
     current = _require_image(session, image_id)
-    return NextImageOut(id=queues.next_unchecked(session, current, kind))
+    return NextImageOut(
+        id=queues.adjacent_image(session, current, flow, category, order_by, direction)
+    )
+
+
+@router.get("/{image_id}/prev")
+def get_prev_image(
+    image_id: str,
+    flow: queues.AdjacentFlow = "device",
+    category: queues.AdjacentCategory = "unchecked",
+    order_by: queues.SortKey = "created_at",
+    direction: queues.SortDirection = "desc",
+    session: Session = Depends(get_session),
+) -> NextImageOut:
+    """Mirror of /next: the adjacent image walking the same queue
+    backwards, wrapping to the queue tail."""
+    current = _require_image(session, image_id)
+    flipped: queues.SortDirection = "asc" if direction == "desc" else "desc"
+    return NextImageOut(
+        id=queues.adjacent_image(session, current, flow, category, order_by, flipped)
+    )
 
 
 @router.get("/{image_id}/prefill", response_model_exclude_unset=True)

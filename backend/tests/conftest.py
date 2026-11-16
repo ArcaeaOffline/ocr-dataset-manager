@@ -86,7 +86,13 @@ def seed() -> SimpleNamespace:
     """Row factories writing straight through SessionLocal. Each call
     commits and returns the inserted ORM row."""
     from app.db import SessionLocal
-    from app.models import B30Component, B30Result, DeviceResult, Image
+    from app.models import (
+        B30Component,
+        B30Result,
+        DeviceResult,
+        Image,
+        OriginalFilename,
+    )
 
     counter = itertools.count()
 
@@ -133,9 +139,13 @@ def seed() -> SimpleNamespace:
             setattr(row, name, value)
         return _save(row)
 
+    def original_filename(image: Image, name: str) -> None:
+        _save(OriginalFilename(image_id=image.id, original_filename=name))
+
     return SimpleNamespace(
         image=image,
         device_result=device_result,
         b30_result=b30_result,
         b30_component=b30_component,
+        original_filename=original_filename,
     )

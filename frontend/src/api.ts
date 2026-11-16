@@ -49,6 +49,26 @@ export type DeviceRois = Schemas["DeviceRoisOut"];
 
 export type QueueKind = ImageItem["kind"];
 
+/** Sidebar slice of the queue: annotation state, or the hidden bin. */
+export type ImageCategory = "all" | "unchecked" | "checked" | "hidden";
+
+export type ImageCounts = Schemas["ImageCountsOut"];
+
+/**
+ * Traversal context the queue view forwards to the annotate page through
+ * the route query: which category slice the adjacent-image walk covers,
+ * in which order. Absent fields fall back to the backend defaults
+ * (unchecked, created_at, desc).
+ */
+export type QueueTraversal = {
+  category?: "all" | "unchecked" | "checked";
+  order_by?: "created_at" | "original_filename";
+  direction?: "asc" | "desc";
+};
+
+/** Ordering half of the traversal context, without the category slice. */
+export type QueueSort = Pick<QueueTraversal, "order_by" | "direction">;
+
 export type SongEntry = Schemas["SongOut"];
 
 /** Partner letter id and display name. `name` is null when the game's
@@ -102,24 +122,32 @@ export const catalog = {
 // always serialize every field (see the Required<> aliases) and
 // PrefillResponse's exclude_unset union is narrower than its schema
 export const api = {
+  // category=hidden ignores kind on the backend (hidden images belong to
+  // no queue), so passing the kind filter along is always safe
   listImages: (
-    uncheckedOnly: boolean,
+    category: ImageCategory,
     offset: number,
     limit: number,
     kind: QueueKind | null = null,
-    hiddenOnly = false,
+    order: QueueSort = {},
   ) =>
     unwrap(
       client.GET("/api/images", {
         params: {
           query: {
-            unchecked_only: uncheckedOnly,
+            category,
             offset,
             limit,
             kind: kind ?? undefined,
-            hidden: hiddenOnly ? "only" : undefined,
+            ...order,
           },
         },
+      }),
+    ),
+  imageCounts: (kind: QueueKind | null = null) =>
+    unwrap(
+      client.GET("/api/images/counts", {
+        params: { query: { kind: kind ?? undefined } },
       }),
     ),
   getImage: (id: string) =>
@@ -132,11 +160,18 @@ export const api = {
         body: { hidden },
       }),
     ),
-  // null id = no unchecked image left
-  getNextImage: (id: string, kind: "device" | "b30" = "device") =>
+  // null id = queue exhausted. Traversal follows the annotate flow, not
+  // the queue view's kind filter. Category defaults to unchecked there
+  getNextImage: (id: string, flow: "device" | "b30" = "device", traversal?: QueueTraversal) =>
     unwrap(
       client.GET("/api/images/{image_id}/next", {
-        params: { path: { image_id: id }, query: { kind } },
+        params: { path: { image_id: id }, query: { flow, ...traversal } },
+      }),
+    ),
+  getPrevImage: (id: string, flow: "device" | "b30" = "device", traversal?: QueueTraversal) =>
+    unwrap(
+      client.GET("/api/images/{image_id}/prev", {
+        params: { path: { image_id: id }, query: { flow, ...traversal } },
       }),
     ),
   // flow=device forces the device proposal even for b30-probed images

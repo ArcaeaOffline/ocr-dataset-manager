@@ -61,18 +61,18 @@ def test_kind_filter_and_total(client: TestClient, seed: SimpleNamespace) -> Non
     assert {i["id"] for i in unclassified} == {bare.id}
 
 
-def test_total_follows_unchecked_filter(
+def test_total_follows_category_unchecked(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
     checked = seed.image()
     seed.device_result(checked, checked=True)
     seed.image()
 
-    response = client.get("/api/images", params={"unchecked_only": True}).json()
+    response = client.get("/api/images", params={"category": "unchecked"}).json()
     assert response["total"] == 1
 
 
-def test_unchecked_only_spans_both_queues(
+def test_category_unchecked_spans_both_queues(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
     checked = seed.image()
@@ -83,13 +83,13 @@ def test_unchecked_only_spans_both_queues(
     b30_no_layout = seed.image()
     seed.b30_result(b30_no_layout, layout=None)
 
-    items = client.get("/api/images", params={"unchecked_only": True}).json()
+    items = client.get("/api/images", params={"category": "unchecked"}).json()
     # not-fully-checked b30 images belong to the unchecked view too
     assert items["total"] == 3
     assert {i["id"] for i in items["items"]} == {draft.id, bare.id, b30_no_layout.id}
 
 
-def test_unchecked_only_all_includes_partial_b30(
+def test_category_unchecked_includes_partial_b30(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
     device_done = seed.image()
@@ -105,12 +105,12 @@ def test_unchecked_only_all_includes_partial_b30(
     seed.b30_result(partial, layout=LAYOUT_ID)
     seed.b30_component(partial, 0, checked=True)
 
-    items = client.get("/api/images", params={"unchecked_only": True}).json()
+    items = client.get("/api/images", params={"category": "unchecked"}).json()
     assert items["total"] == 2
     assert {i["id"] for i in items["items"]} == {bare.id, partial.id}
 
 
-def test_unchecked_only_excludes_hybrid_with_checked_device_row(
+def test_category_unchecked_excludes_hybrid_with_checked_device_row(
     client: TestClient, seed: SimpleNamespace
 ) -> None:
     """A hybrid image presents as device (queues.kind_of): queue
@@ -121,15 +121,17 @@ def test_unchecked_only_excludes_hybrid_with_checked_device_row(
     seed.b30_result(hybrid, layout=LAYOUT_ID)
     seed.b30_component(hybrid, 0, checked=True)
 
-    all_view = client.get("/api/images", params={"unchecked_only": True}).json()
+    all_view = client.get("/api/images", params={"category": "unchecked"}).json()
     assert all_view["items"] == []
     b30_view = client.get(
-        "/api/images", params={"unchecked_only": True, "kind": "b30"}
+        "/api/images", params={"category": "unchecked", "kind": "b30"}
     ).json()
     assert b30_view["items"] == []
 
 
-def test_unchecked_only_b30_queue(client: TestClient, seed: SimpleNamespace) -> None:
+def test_category_unchecked_b30_queue(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
     done = seed.image()
     seed.b30_result(done, layout=LAYOUT_ID)
     for idx in range(LAYOUT.component_count):
@@ -144,7 +146,7 @@ def test_unchecked_only_b30_queue(client: TestClient, seed: SimpleNamespace) -> 
     seed.b30_result(no_layout, layout=None)
 
     items = client.get(
-        "/api/images", params={"unchecked_only": True, "kind": "b30"}
+        "/api/images", params={"category": "unchecked", "kind": "b30"}
     ).json()["items"]
     # an unknown layout can never count as done
     assert {i["id"] for i in items} == {partial.id, no_layout.id}
@@ -291,7 +293,7 @@ def test_hidden_default_excluded_and_only_listed(
     assert default["total"] == 1
     assert {i["id"] for i in default["items"]} == {visible.id}
 
-    only = client.get("/api/images", params={"hidden": "only"}).json()
+    only = client.get("/api/images", params={"category": "hidden"}).json()
     assert only["total"] == 1
     assert {i["id"] for i in only["items"]} == {hidden_img.id}
 
@@ -322,7 +324,7 @@ def test_hidden_excluded_from_kind_and_unchecked_views(
     for image in (hidden_bare, hidden_device):
         _set_hidden(client, image.id)
 
-    unchecked = client.get("/api/images", params={"unchecked_only": True}).json()
+    unchecked = client.get("/api/images", params={"category": "unchecked"}).json()
     assert {i["id"] for i in unchecked["items"]} == {visible.id}
     assert unchecked["total"] == 1
     expected_by_kind = {
@@ -341,4 +343,136 @@ def test_hidden_validates_params_and_missing_image(client: TestClient) -> None:
         client.put("/api/images/missing-id/hidden", json={"hidden": True}).status_code
         == 404
     )
-    assert client.get("/api/images", params={"hidden": "bogus"}).status_code == 422
+    assert client.get("/api/images", params={"category": "bogus"}).status_code == 422
+
+
+def test_category_checked_view(client: TestClient, seed: SimpleNamespace) -> None:
+    device_done = seed.image()
+    seed.device_result(device_done, checked=True)
+    draft = seed.image()
+    seed.device_result(draft, checked=False)
+    bare = seed.image()
+    b30_full = seed.image()
+    seed.b30_result(b30_full, layout=LAYOUT_ID)
+    for idx in range(LAYOUT.component_count):
+        seed.b30_component(b30_full, idx, checked=True)
+    b30_partial = seed.image()
+    seed.b30_result(b30_partial, layout=LAYOUT_ID)
+    seed.b30_component(b30_partial, 0, checked=True)
+
+    checked = client.get("/api/images", params={"category": "checked"}).json()
+    assert {i["id"] for i in checked["items"]} == {device_done.id, b30_full.id}
+    unchecked = client.get("/api/images", params={"category": "unchecked"}).json()
+    assert {i["id"] for i in unchecked["items"]} == {draft.id, bare.id, b30_partial.id}
+    everything = client.get("/api/images", params={"category": "all"}).json()
+    assert {i["id"] for i in everything["items"]} == {
+        device_done.id,
+        draft.id,
+        bare.id,
+        b30_full.id,
+        b30_partial.id,
+    }
+    # the two state categories partition the visible set
+    assert checked["total"] + unchecked["total"] == everything["total"]
+
+
+def test_category_checked_respects_kind(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    device_done = seed.image()
+    seed.device_result(device_done, checked=True)
+    b30_full = seed.image()
+    seed.b30_result(b30_full, layout=LAYOUT_ID)
+    for idx in range(LAYOUT.component_count):
+        seed.b30_component(b30_full, idx, checked=True)
+    seed.image()
+
+    device_view = client.get(
+        "/api/images", params={"category": "checked", "kind": "device"}
+    ).json()
+    assert {i["id"] for i in device_view["items"]} == {device_done.id}
+    b30_view = client.get(
+        "/api/images", params={"category": "checked", "kind": "b30"}
+    ).json()
+    assert {i["id"] for i in b30_view["items"]} == {b30_full.id}
+    # an unclassified image has no rows to confirm, so it can never be
+    # checked
+    unclassified = client.get(
+        "/api/images", params={"category": "checked", "kind": "unclassified"}
+    ).json()
+    assert unclassified["items"] == []
+
+
+def test_counts_match_category_views(client: TestClient, seed: SimpleNamespace) -> None:
+    device_done = seed.image()
+    seed.device_result(device_done, checked=True)
+    draft = seed.image()
+    seed.device_result(draft, checked=False)
+    seed.image()
+    b30_full = seed.image()
+    seed.b30_result(b30_full, layout=LAYOUT_ID)
+    for idx in range(LAYOUT.component_count):
+        seed.b30_component(b30_full, idx, checked=True)
+    b30_partial = seed.image()
+    seed.b30_result(b30_partial, layout=LAYOUT_ID)
+    seed.b30_component(b30_partial, 0, checked=True)
+    hidden_img = seed.image()
+    seed.device_result(hidden_img, checked=True)
+    _set_hidden(client, hidden_img.id)
+
+    counts = client.get("/api/images/counts").json()
+    assert counts == {"all": 5, "unchecked": 3, "checked": 2, "hidden": 1}
+
+    device_counts = client.get("/api/images/counts", params={"kind": "device"}).json()
+    # all/unchecked/checked follow the kind filter; the hidden total
+    # never does (hidden images belong to no queue)
+    assert device_counts == {"all": 2, "unchecked": 1, "checked": 1, "hidden": 1}
+    b30_counts = client.get("/api/images/counts", params={"kind": "b30"}).json()
+    assert b30_counts == {"all": 2, "unchecked": 1, "checked": 1, "hidden": 1}
+
+
+def test_list_order_by_original_filename(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    b = seed.image(created_at=datetime(2026, 1, 1))
+    seed.original_filename(b, "b.png")
+    a = seed.image(created_at=datetime(2026, 1, 2))
+    seed.original_filename(a, "a.png")
+    c = seed.image(created_at=datetime(2026, 1, 3))
+    seed.original_filename(c, "c.png")
+    unnamed = seed.image(created_at=datetime(2026, 1, 4))
+
+    asc = [
+        i["id"]
+        for i in client.get(
+            "/api/images",
+            params={"order_by": "original_filename", "direction": "asc"},
+        ).json()["items"]
+    ]
+    assert asc == [a.id, b.id, c.id, unnamed.id]
+    # NULLs stay last in both directions instead of flipping to the front
+    desc = [
+        i["id"]
+        for i in client.get(
+            "/api/images", params={"order_by": "original_filename"}
+        ).json()["items"]
+    ]
+    assert desc == [c.id, b.id, a.id, unnamed.id]
+
+
+def test_list_order_tiebroken_by_id(client: TestClient, seed: SimpleNamespace) -> None:
+    same_time = [seed.image(created_at=datetime(2026, 1, 1)) for _ in range(3)]
+    ids = [image.id for image in same_time]
+
+    desc = [i["id"] for i in client.get("/api/images").json()["items"]]
+    assert desc == sorted(ids, reverse=True)
+    asc = [
+        i["id"]
+        for i in client.get("/api/images", params={"direction": "asc"}).json()["items"]
+    ]
+    assert asc == sorted(ids)
+
+
+def test_list_validates_order_params(client: TestClient) -> None:
+    for params in ({"order_by": "bogus"}, {"direction": "bogus"}):
+        assert client.get("/api/images", params=params).status_code == 422
