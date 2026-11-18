@@ -37,7 +37,9 @@ function onGroupUpdate(value: unknown) {
   <div>
     <FieldLabel :label="props.label" :prefilled="props.prefilled" />
     <!-- optional annotate-view crop: a window onto this field's ROI -->
-    <slot name="crop" />
+    <div v-if="$slots.crop" class="mt-1">
+      <slot name="crop" />
+    </div>
     <ToggleGroupRoot
       type="single"
       class="mt-1 flex flex-wrap gap-1"

@@ -24,10 +24,14 @@ function onInput(event: Event) {
 </script>
 
 <template>
-  <label class="block">
+  <label class="flex h-full flex-col">
     <FieldLabel :label="props.label" :prefilled="props.prefilled" />
-    <!-- optional annotate-view crop: a window onto this field's ROI -->
-    <slot name="crop" />
+    <!-- optional annotate-view crop: a window onto this field's ROI.
+         flex-1 absorbs height differences between paired crops in a
+         shared grid row, keeping the inputs aligned across cells -->
+    <div v-if="$slots.crop" class="mt-0.5 flex flex-1 items-start">
+      <slot name="crop" />
+    </div>
     <!-- optional line above the input, e.g. the value as the screenshot renders it -->
     <slot name="input-extra" />
     <input

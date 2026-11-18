@@ -454,7 +454,7 @@ useShortcuts(
           :prefilled="prefilled.has('rating_class')"
         >
           <template #crop>
-            <RoiCrop v-if="crops.rating_class" v-bind="crops.rating_class" class="mt-1" />
+            <RoiCrop v-if="crops.rating_class" v-bind="crops.rating_class" size="md" />
           </template>
         </SegmentedSelect>
 
@@ -464,7 +464,7 @@ useShortcuts(
           :prefilled="prefilled.has('max_recall')"
         >
           <template #crop>
-            <RoiCrop v-if="crops.max_recall" v-bind="crops.max_recall" class="mt-0.5" />
+            <RoiCrop v-if="crops.max_recall" v-bind="crops.max_recall" size="sm" />
           </template>
         </NumberField>
 
@@ -483,13 +483,13 @@ useShortcuts(
           :prefilled="prefilled.has('clear_status')"
         >
           <template #crop>
-            <RoiCrop v-if="crops.clear_status" v-bind="crops.clear_status" class="mt-1" />
+            <RoiCrop v-if="crops.clear_status" v-bind="crops.clear_status" size="md" />
           </template>
         </SegmentedSelect>
 
         <NumberField v-model="form.score" label="score" :prefilled="prefilled.has('score')">
           <template #crop>
-            <RoiCrop v-if="crops.score" v-bind="crops.score" class="mt-0.5" />
+            <RoiCrop v-if="crops.score" v-bind="crops.score" size="md" />
           </template>
           <template #input-extra>
             <span
@@ -508,7 +508,7 @@ useShortcuts(
             :prefilled="prefilled.has('high_score')"
           >
             <template #crop>
-              <RoiCrop v-if="crops.high_score" v-bind="crops.high_score" class="mt-0.5" />
+              <RoiCrop v-if="crops.high_score" v-bind="crops.high_score" size="sm" />
             </template>
             <template #input-extra>
               <span
@@ -525,11 +525,7 @@ useShortcuts(
             :prefilled="prefilled.has('high_score_delta')"
           >
             <template #crop>
-              <RoiCrop
-                v-if="crops.high_score_delta"
-                v-bind="crops.high_score_delta"
-                class="mt-0.5"
-              />
+              <RoiCrop v-if="crops.high_score_delta" v-bind="crops.high_score_delta" size="sm" />
             </template>
             <template #input-extra>
               <span
@@ -545,7 +541,7 @@ useShortcuts(
         <div class="grid grid-cols-2 gap-2">
           <NumberField v-model="form.pure" label="pure" :prefilled="prefilled.has('pure')">
             <template #crop>
-              <RoiCrop v-if="crops.pure" v-bind="crops.pure" class="mt-0.5" />
+              <RoiCrop v-if="crops.pure" v-bind="crops.pure" size="sm" />
             </template>
           </NumberField>
           <NumberField
@@ -554,7 +550,7 @@ useShortcuts(
             :prefilled="prefilled.has('pure_shiny')"
           >
             <template #crop>
-              <RoiCrop v-if="crops.pure_shiny" v-bind="crops.pure_shiny" class="mt-0.5" />
+              <RoiCrop v-if="crops.pure_shiny" v-bind="crops.pure_shiny" size="sm" />
             </template>
           </NumberField>
         </div>
@@ -562,18 +558,18 @@ useShortcuts(
         <div class="grid grid-cols-2 gap-2">
           <NumberField v-model="form.far" label="far" :prefilled="prefilled.has('far')">
             <template #crop>
-              <RoiCrop v-if="crops.far" v-bind="crops.far" class="mt-0.5" />
+              <RoiCrop v-if="crops.far" v-bind="crops.far" size="sm" />
             </template>
           </NumberField>
           <NumberField v-model="form.lost" label="lost" :prefilled="prefilled.has('lost')">
             <template #crop>
-              <RoiCrop v-if="crops.lost" v-bind="crops.lost" class="mt-0.5" />
+              <RoiCrop v-if="crops.lost" v-bind="crops.lost" size="sm" />
             </template>
           </NumberField>
         </div>
 
-        <RoiCrop v-if="crops.early_late" v-bind="crops.early_late" />
-        <p v-if="earlyLateDisplay" class="mt-0.5 text-sm tabular-nums text-muted-foreground">
+        <RoiCrop v-if="crops.early_late" v-bind="crops.early_late" size="lg" />
+        <p v-if="earlyLateDisplay" class="!mt-0.5 text-sm tabular-nums text-muted-foreground">
           {{ earlyLateDisplay }}
         </p>
 
