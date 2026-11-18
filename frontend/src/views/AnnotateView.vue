@@ -16,6 +16,7 @@ import {
 } from "@/api";
 import B30Annotate from "@/features/annotate/components/B30Annotate.vue";
 import Button from "@/components/ui/Button.vue";
+import Checkbox from "@/components/ui/Checkbox.vue";
 import CheckedToggle from "@/components/ui/CheckedToggle.vue";
 import ConfirmDialog from "@/components/ui/ConfirmDialog.vue";
 import FlowSelector from "@/features/annotate/components/FlowSelector.vue";
@@ -68,6 +69,7 @@ const emptyFields = (): ResultFields => ({
   rois_type: null,
   song_id: null,
   partner_id: null,
+  is_insight_usurped: false,
   rating_class: null,
   clear_status: null,
   score: null,
@@ -436,6 +438,12 @@ useShortcuts(
           :candidates="partnerCandidates"
           :partners="partners"
           :prefilled="prefilled.has('partner_id')"
+        />
+
+        <Checkbox
+          :model-value="form.is_insight_usurped === true"
+          label="is_insight_usurped"
+          @update:model-value="form.is_insight_usurped = $event"
         />
 
         <SegmentedSelect

@@ -85,6 +85,8 @@ class DeviceResult(Base):
     rois_type: Mapped[int | None] = mapped_column(Integer, nullable=True)
     song_id: Mapped[str | None] = mapped_column(String, nullable=True)
     partner_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # null = unconfirmed. The annotate UI only writes true/false
+    is_insight_usurped: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     rating_class: Mapped[int | None] = mapped_column(Integer, nullable=True)
     clear_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)

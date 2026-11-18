@@ -2732,6 +2732,17 @@
             ],
             "title": "Partner Id"
           },
+          "is_insight_usurped": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Insight Usurped"
+          },
           "rating_class": {
             "anyOf": [
               {
@@ -2929,6 +2940,17 @@
               }
             ],
             "title": "Partner Id"
+          },
+          "is_insight_usurped": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Insight Usurped"
           },
           "rating_class": {
             "anyOf": [

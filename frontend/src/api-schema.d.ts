@@ -524,6 +524,8 @@ export interface components {
       song_id?: string | null;
       /** Partner Id */
       partner_id?: string | null;
+      /** Is Insight Usurped */
+      is_insight_usurped?: boolean | null;
       /** Rating Class */
       rating_class?: number | null;
       /** Clear Status */
@@ -566,6 +568,8 @@ export interface components {
       song_id?: string | null;
       /** Partner Id */
       partner_id?: string | null;
+      /** Is Insight Usurped */
+      is_insight_usurped?: boolean | null;
       /** Rating Class */
       rating_class?: number | null;
       /** Clear Status */

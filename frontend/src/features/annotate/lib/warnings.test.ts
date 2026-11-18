@@ -6,6 +6,7 @@ const base: ResultFields = {
   rois_type: null,
   song_id: null,
   partner_id: null,
+  is_insight_usurped: false,
   rating_class: null,
   clear_status: null,
   score: null,

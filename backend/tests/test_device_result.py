@@ -19,6 +19,7 @@ def _fields(**overrides: object) -> dict[str, object]:
         "rois_type": 1,
         "song_id": "song_a",
         "partner_id": "1",
+        "is_insight_usurped": True,
         "rating_class": 2,
         "clear_status": 3,
         "score": 10_000_000,
@@ -64,6 +65,19 @@ def test_put_result_creates_row_and_echoes(
         assert body[key] == value
 
     assert client.get(f"/api/images/{image.id}/result").json() == body
+
+
+def test_put_result_without_insight_usurped_stores_null(
+    client: TestClient, seed: SimpleNamespace
+) -> None:
+    """Omitting `is_insight_usurped` stores null (unconfirmed), not false."""
+    image = seed.image()
+
+    fields = _fields()
+    del fields["is_insight_usurped"]
+    response = client.put(f"/api/images/{image.id}/result", json=fields)
+    assert response.status_code == 200
+    assert response.json()["is_insight_usurped"] is None
 
 
 def test_put_result_updates_existing_row(

@@ -67,6 +67,7 @@ class DeviceResultIn(BaseModel):
     rois_type: int | None = None
     song_id: str | None = None
     partner_id: str | None = None
+    is_insight_usurped: bool | None = None
     rating_class: int | None = None
     clear_status: int | None = None
     score: int | None = None
