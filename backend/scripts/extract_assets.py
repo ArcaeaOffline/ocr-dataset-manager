@@ -9,7 +9,7 @@ from pathlib import Path
 from app.config import CHARACTERS_PATH, PARTNER_ICONS_DIR, SONGLIST_PATH
 
 # icon stems double as ihdb labels
-_PARTNER_ICON = re.compile(r"^assets/char/(\d+u?)_icon\.(jpg|png)$")
+_PARTNER_ICON = re.compile(r"^assets/char/(\d+[a-z]?)_icon\.(jpg|png)$")
 _SONGLIST = re.compile(r"^assets/songs/songlist$")
 _CHARACTERS = re.compile(r"^assets/char/characters\.json$")
 

@@ -76,19 +76,29 @@ def test_songs_reparse_when_file_mtime_changes(
     assert client.get("/api/catalog/songs").json() == [{"id": "b", "title": "B"}]
 
 
-def test_partners_sorted_by_numeric_id_with_u_suffix_last(
+def test_partners_sorted_by_number_then_variant_letter(
     client: TestClient, partner_icons: Path
 ) -> None:
-    for name in ("10.png", "1.png", "10u.jpg", "2.png", "2u.png"):
+    for name in ("10.png", "1.png", "10u.jpg", "2.png", "2u.png", "1l.png", "0o.png"):
         (partner_icons / name).write_bytes(b"x")
+    # files whose stem is not a partner id are not catalog entries
+    (partner_icons / "desktop.ini").write_bytes(b"x")
     response = client.get("/api/catalog/partners")
-    assert [p["id"] for p in response.json()] == ["1", "2", "2u", "10", "10u"]
+    assert [p["id"] for p in response.json()] == [
+        "0o",
+        "1",
+        "1l",
+        "2",
+        "2u",
+        "10",
+        "10u",
+    ]
 
 
 def test_partners_names_merged_from_characters_file(
     client: TestClient, partner_icons: Path, characters: Path
 ) -> None:
-    for name in ("0.png", "0u.png", "1.png"):
+    for name in ("0.png", "0u.png", "1.png", "1l.png"):
         (partner_icons / name).write_bytes(b"x")
     characters.write_text(
         json.dumps(
@@ -104,6 +114,7 @@ def test_partners_names_merged_from_characters_file(
         {"id": "0", "name": "hikari"},
         {"id": "0u", "name": "hikari"},
         {"id": "1", "name": "tairitsu"},
+        {"id": "1l", "name": "tairitsu"},
     ]
 
 
@@ -168,6 +179,18 @@ def test_partner_icon_rejects_malformed_id(
 ) -> None:
     (partner_icons / "1.png").write_bytes(b"png-bytes")
     assert client.get("/api/catalog/partners/abc/icon").status_code == 404
+    # the variant suffix is a single letter at most
+    assert client.get("/api/catalog/partners/1uu/icon").status_code == 404
+
+
+def test_partner_icon_serves_letter_variant_id(
+    client: TestClient, partner_icons: Path
+) -> None:
+    (partner_icons / "1l.png").write_bytes(b"png-bytes")
+    response = client.get("/api/catalog/partners/1l/icon")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content == b"png-bytes"
 
 
 def test_partner_icon_unknown_partner_404(

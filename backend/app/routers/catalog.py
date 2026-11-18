@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 
-_PARTNER_ID_RE = re.compile(r"^\d+u?$")
+_PARTNER_ID_RE = re.compile(r"(?P<num>\d+)(?P<variant>[a-z]?)")
 
 
 class SongOut(BaseModel):
@@ -82,12 +82,16 @@ def _partner_names() -> dict[str, str]:
 @router.get("/partners")
 def list_partners() -> list[PartnerOut]:
     names = _partner_names()
-    ids = sorted(
-        (p.stem for p in PARTNER_ICONS_DIR.iterdir() if p.is_file()),
-        key=lambda s: (int(s.rstrip("u")), s.endswith("u")),
+    matches = sorted(
+        (
+            m
+            for p in PARTNER_ICONS_DIR.iterdir()
+            if p.is_file() and (m := _PARTNER_ID_RE.fullmatch(p.stem)) is not None
+        ),
+        key=lambda m: (int(m["num"]), m["variant"]),
     )
-    # uncapped icon variants (e.g. "0u") share the base character's name
-    return [PartnerOut(id=i, name=names.get(i.removesuffix("u"))) for i in ids]
+    # variant icons ("0u", "1l") share the base character's name
+    return [PartnerOut(id=m.group(0), name=names.get(m["num"])) for m in matches]
 
 
 @router.get(
@@ -96,7 +100,7 @@ def list_partners() -> list[PartnerOut]:
     responses={200: {"content": {"image/png": {}, "image/jpeg": {}}}},
 )
 def partner_icon(partner_id: str) -> FileResponse:
-    if not _PARTNER_ID_RE.match(partner_id):
+    if _PARTNER_ID_RE.fullmatch(partner_id) is None:
         raise HTTPException(status_code=404, detail="unknown partner")
     for ext in (".png", ".jpg"):
         path = PARTNER_ICONS_DIR / f"{partner_id}{ext}"
