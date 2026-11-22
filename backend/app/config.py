@@ -219,6 +219,7 @@ settings = resolve_settings()
 DATA_DIR = settings.data_dir
 IMAGES_DIR = DATA_DIR / "images"
 THUMBS_DIR = DATA_DIR / "thumbs"
+EXPORTS_DIR = DATA_DIR / "exports"
 PARTNER_ICONS_DIR = DATA_DIR / "partner_icons"
 SONGLIST_PATH = DATA_DIR / "catalog" / "songlist"
 CHARACTERS_PATH = DATA_DIR / "catalog" / "characters.json"
@@ -236,6 +237,7 @@ def apply_settings(new: Settings) -> None:
         "DATA_DIR": new.data_dir,
         "IMAGES_DIR": new.data_dir / "images",
         "THUMBS_DIR": new.data_dir / "thumbs",
+        "EXPORTS_DIR": new.data_dir / "exports",
         "PARTNER_ICONS_DIR": new.data_dir / "partner_icons",
         "SONGLIST_PATH": new.data_dir / "catalog" / "songlist",
         "CHARACTERS_PATH": new.data_dir / "catalog" / "characters.json",

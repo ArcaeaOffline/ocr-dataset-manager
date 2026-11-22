@@ -34,6 +34,7 @@ import { CLEAR_KEYS, RATING_KEYS, fieldShortcuts } from "@/features/annotate/lib
 import type { FieldCrop } from "@/features/annotate/lib/roiCropStyle";
 import {
   formatEarlyLate,
+  formatHighScore,
   formatScore,
   formatScoreDelta,
 } from "@/features/annotate/lib/displayFormat";
@@ -266,7 +267,7 @@ const ratingHint = computed(() => voteHint(data.value.prefill?.rating_class_vote
 const clearHint = computed(() => voteHint(data.value.prefill?.clear_status_votes));
 
 const scoreDisplay = computed(() => formatScore(form.score));
-const highScoreDisplay = computed(() => formatScore(form.high_score));
+const highScoreDisplay = computed(() => formatHighScore(form.high_score));
 const scoreDeltaDisplay = computed(() => formatScoreDelta(form.high_score_delta));
 const earlyLateDisplay = computed(() => formatEarlyLate(form));
 

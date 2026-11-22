@@ -10,7 +10,7 @@ from fastapi_problem_details import init_app as init_problem_details
 
 from .config import settings
 from .db import init_db
-from .routers import catalog, images, imports
+from .routers import catalog, exports, images, imports
 
 # Windows seeds mimetypes from the registry, where .js can map to
 # text/plain. Browsers refuse ES module scripts with a non-JS MIME.
@@ -44,6 +44,7 @@ app = FastAPI(
 init_problem_details(app)
 
 app.include_router(imports.router)
+app.include_router(exports.router)
 app.include_router(images.router)
 app.include_router(catalog.router)
 

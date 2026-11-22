@@ -74,7 +74,7 @@ def isolated_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     prefill._b30_components.clear()
     catalog_router._parse_songlist.cache_clear()
     catalog_router._parse_characters.cache_clear()
-    for name in ("images", "thumbs", "partner_icons", "catalog"):
+    for name in ("images", "thumbs", "exports", "partner_icons", "catalog"):
         shutil.rmtree(DATA_DIR / name, ignore_errors=True)
 
 

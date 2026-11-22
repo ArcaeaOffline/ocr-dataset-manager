@@ -14,6 +14,8 @@ export type ImageItem = Schemas["ImageOut"];
 
 export type ImportBatch = Schemas["ImportBatchOut"];
 
+export type ExportJob = Schemas["ExportOut"];
+
 export type Candidate = Schemas["PrefillCandidate"];
 
 export type Prefill = Schemas["PrefillPayload"];
@@ -236,6 +238,12 @@ export const api = {
       }),
     ),
   listImports: () => unwrap(client.GET("/api/imports")),
+  createExport: () => unwrap(client.POST("/api/exports")),
+  listExports: () => unwrap(client.GET("/api/exports")),
+  // the archive is a plain download, not a fetch
+  exportDownloadUrl: (id: string) => `/api/exports/${id}/download`,
+  deleteExport: (id: string) =>
+    unwrap(client.DELETE("/api/exports/{export_id}", { params: { path: { export_id: id } } })),
   thumbUrl: (id: string) => `/api/images/${id}/thumb`,
   fileUrl: (id: string) => `/api/images/${id}/file`,
   // black-edge-cropped copy of /file. ROI rects are coordinates on it

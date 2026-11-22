@@ -131,7 +131,6 @@ can be reset any time by deleting `data/odm.sqlite3`.
 
 ## Known limitations / roadmap
 
-- No export path from SQLite to training formats yet.
 - B30/B50 bot layouts covered: chieri v4, yurisaki, arcaeaonline
   (b30/b50). Other bot renderings probe as unclassified. They can still
   be annotated manually via the flow switch, but OCR prefill for them

@@ -1,7 +1,16 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, false
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    false,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -27,6 +36,40 @@ class ImportBatch(Base):
     skipped_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     note: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class Export(Base):
+    """One training-data export job.
+
+    The row doubles as the job's progress record: `finished_at is None`
+    means the export thread is still running, and `error` carries a
+    fatal job-level failure (per-image failures only bump the
+    counters). Counters are image-level; crop-level breakdowns live in
+    the export's meta.json."""
+
+    __tablename__ = "exports"
+    # At most one row with finished_at IS NULL. Keyed on a constant:
+    # SQLite unique indexes treat NULL as distinct, so indexing
+    # finished_at itself would never collide.
+    __table_args__ = (
+        Index(
+            "uq_exports_single_running",
+            text("1"),
+            unique=True,
+            sqlite_where=text("finished_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_uuid)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    exported_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    skipped_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class Image(Base):

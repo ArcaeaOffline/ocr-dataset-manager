@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEarlyLate, formatScore, formatScoreDelta } from "./displayFormat";
+import { formatEarlyLate, formatHighScore, formatScore, formatScoreDelta } from "./displayFormat";
 
 describe("formatScore", () => {
   it("zero-pads to 8 digits and groups with apostrophes", () => {
@@ -12,6 +12,19 @@ describe("formatScore", () => {
     expect(formatScore(null)).toBeNull();
     expect(formatScore(-1)).toBeNull();
     expect(formatScore(1.5)).toBeNull();
+  });
+});
+
+describe("formatHighScore", () => {
+  it("renders zero unpadded", () => {
+    expect(formatHighScore(0)).toBe("0");
+  });
+
+  it("renders other values like a score", () => {
+    expect(formatHighScore(9123456)).toBe("09'123'456");
+    expect(formatHighScore(10000000)).toBe("10'000'000");
+    expect(formatHighScore(null)).toBeNull();
+    expect(formatHighScore(-1)).toBeNull();
   });
 });
 
@@ -35,12 +48,17 @@ describe("formatEarlyLate", () => {
     );
   });
 
-  it("drops each PURE part left unfilled", () => {
+  it("renders without the PURE parts when either is unfilled", () => {
     expect(
       formatEarlyLate({ far_late: 12, pure_late: null, far_early: 56, pure_early: null }),
     ).toBe("L12 E56");
+    // incomplete PURE data cannot occur on a real screenshot, so any
+    // missing pure value drops the whole PURE info
     expect(formatEarlyLate({ far_late: 12, pure_late: 34, far_early: 56, pure_early: null })).toBe(
-      "L12(P34) E56",
+      "L12 E56",
+    );
+    expect(formatEarlyLate({ far_late: 12, pure_late: null, far_early: 56, pure_early: 78 })).toBe(
+      "L12 E56",
     );
   });
 

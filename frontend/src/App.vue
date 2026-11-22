@@ -54,6 +54,10 @@ const themeOptions: { value: ThemeChoice; icon: string; title: string }[] = [
           <i class="i-lucide-folder-plus size-4" />
           导入
         </RouterLink>
+        <RouterLink to="/export" class="flex items-center gap-1 whitespace-nowrap hover:underline">
+          <i class="i-lucide-download size-4" />
+          导出
+        </RouterLink>
       </nav>
       <div class="ml-auto flex items-center gap-2">
         <span class="field-label hidden sm:inline">主题</span>

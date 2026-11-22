@@ -15,6 +15,15 @@ export function formatScore(value: number | null): string | null {
 }
 
 /**
+ * The high score text as the screenshot renders it: a zero high score
+ * (no record yet) shows unpadded. Other values render like a score.
+ */
+export function formatHighScore(value: number | null): string | null {
+  if (value === 0) return "0";
+  return formatScore(value);
+}
+
+/**
  * formatScore with a leading sign, the high_score_delta rendering:
  * 1234 -> "+00'001'234". Zero carries "+". Non-integer values render no
  * text.
@@ -33,14 +42,16 @@ export interface EarlyLateFields {
 
 /**
  * The screenshot's early/late line rebuilt from its four values:
- * "L12(P34) E56(P78)". The (P…) parts only exist when the PURE early/late
- * display is on, so each renders only when its value is filled. Null
- * unless both far values are set.
+ * "L12(P34) E56(P78)". The (P…) parts exist only when the PURE early/late
+ * display is on — both or neither: incomplete PURE data cannot occur on a
+ * real screenshot, so any missing pure value drops the whole PURE info.
+ * Null unless both far values are set.
  */
 export function formatEarlyLate(fields: EarlyLateFields): string | null {
   const { far_late, pure_late, far_early, pure_early } = fields;
   if (far_late == null || far_early == null) return null;
-  const late = pure_late == null ? `L${far_late}` : `L${far_late}(P${pure_late})`;
-  const early = pure_early == null ? `E${far_early}` : `E${far_early}(P${pure_early})`;
+  const showPure = pure_late != null && pure_early != null;
+  const late = showPure ? `L${far_late}(P${pure_late})` : `L${far_late}`;
+  const early = showPure ? `E${far_early}(P${pure_early})` : `E${far_early}`;
   return `${late} ${early}`;
 }

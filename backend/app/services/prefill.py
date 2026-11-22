@@ -319,13 +319,17 @@ def warm(image_ids_and_paths: list[tuple[str, str]]) -> None:
 # cache is the only layer they need.
 
 
-def cropped_jpeg(relative_path: str) -> bytes:
-    """JPEG of the screenshot after CropBlackEdges. The rects served by
+def cropped_canvas(relative_path: str) -> MatLike:
+    """The screenshot after CropBlackEdges. The rects served by
     `device_rois` are coordinates on this image."""
     from arcaea_offline_ocr.crop import CropBlackEdges  # noqa: PLC0415
 
-    img = _read_image(relative_path)
-    cropped = CropBlackEdges.crop_or_original(img)
+    return CropBlackEdges.crop_or_original(_read_image(relative_path))
+
+
+def cropped_jpeg(relative_path: str) -> bytes:
+    """JPEG of `cropped_canvas`."""
+    cropped = cropped_canvas(relative_path)
     ok, buf = cv2.imencode(".jpg", cropped, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
     if not ok:
         msg = f"failed to encode cropped image: {relative_path}"
@@ -333,20 +337,25 @@ def cropped_jpeg(relative_path: str) -> bytes:
     return buf.tobytes()
 
 
-def device_rois(relative_path: str, rois_type: int | None = None) -> DeviceRoisGeometry:
+def device_rois(
+    relative_path: str,
+    rois_type: int | None = None,
+    *,
+    canvas: MatLike | None = None,
+) -> DeviceRoisGeometry:
     """Field windows on the cropped image. Rects are rounded exactly like
     the OCR chain rounds them (extractor and rec_only crops both use
     `.rounded()`), so a client-side crop reproduces the pixels the OCR
     reads. `rois_type` skips detection. None runs the T1/T2 selector and
-    raises when the layout is undetectable."""
-    from arcaea_offline_ocr.crop import CropBlackEdges  # noqa: PLC0415
+    raises when the layout is undetectable. `canvas` accepts a
+    precomputed `cropped_canvas` result, sparing the re-read for callers
+    that also need the pixels."""
     from arcaea_offline_ocr.scenarios.device.rois.selector import (  # noqa: PLC0415
         DeviceRoisAutoSelector,
         DeviceRoisAutoSelectorResult,
     )
 
-    img = _read_image(relative_path)
-    cropped = CropBlackEdges.crop_or_original(img)
+    cropped = cropped_canvas(relative_path) if canvas is None else canvas
     if rois_type is None:
         selected = DeviceRoisAutoSelector.select(cropped, None)
         if selected is DeviceRoisAutoSelectorResult.UNKNOWN:
