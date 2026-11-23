@@ -24,7 +24,7 @@
     "@iconify-json/lucide": "^1.2.133",
     "@types/node": "^24.13.3",
     "@unocss/reset": "^66.10.5",
-    "@vitejs/plugin-vue": "^6.0.8",
+    "@vitejs/plugin-vue": "^6.0.10",
     "@vue/tsconfig": "^0.9.1",
     "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.68.0",
