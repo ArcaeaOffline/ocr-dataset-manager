@@ -9,7 +9,7 @@ pre-recognition, human confirmations, SQLite storage.
 ## Layout
 
 ```
-backend/          FastAPI + SQLAlchemy + SQLite, uv workspace member.
+backend/          FastAPI + SQLAlchemy + SQLite backend package.
                   Read `backend/AGENTS.md` before changing backend code.
 frontend/         vite + vue3 + UnoCSS SPA (pnpm).
                   Read `frontend/AGENTS.md` before changing frontend code.
@@ -24,15 +24,13 @@ and not user-global ignore files.
 ## Commands
 
 ```bash
-# install from the workspace root. --all-packages is required: plain
-# `uv sync` installs nothing but the root project
-uv sync --all-packages
+# install (from backend/)
+(cd backend && uv sync)
 
 # local all-checks: backend format + lint + types + tests,
 # frontend build + tests + lint + format
-uv run ruff format --check backend && uv run ruff check backend && \
-  uv run basedpyright backend && \
-  (cd backend && uv run pytest -q) && \
+(cd backend && uv run ruff format --check . && uv run ruff check . && \
+  uv run basedpyright . && uv run pytest -q) && \
   (cd frontend && pnpm build && pnpm test && pnpm lint && pnpm format:check)
 ```
 

@@ -78,11 +78,11 @@ The dev server proxies `/api` to the backend.
 
 ```bash
 # backend
-uv sync --all-packages
 cd backend
+uv sync
 uv run uvicorn app.main:app --port 8199
 
-# frontend (second terminal, from the repository root)
+# frontend (second terminal)
 cd frontend
 pnpm install
 pnpm dev
@@ -93,8 +93,9 @@ pnpm dev
 The backend serves the built frontend and opens the browser itself.
 
 ```bash
-uv sync --all-packages
-(cd frontend && pnpm install && pnpm build)
+cd backend
+uv sync
+(cd ../frontend && pnpm install && pnpm build)
 uv run odm  # or python -m app
 ```
 
@@ -142,8 +143,8 @@ the backend with PyInstaller into a portable bundle, which is a folder
 around `odm.exe` that runs from anywhere:
 
 ```bash
-# from the repository root
-uv run backend/scripts/package_windows.py
+# from backend/
+uv run scripts/package_windows.py
 ```
 
 The output is `build/dist/odm/`. Double-clicking `odm.exe` starts the

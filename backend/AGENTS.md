@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI + SQLAlchemy + SQLite service, a uv workspace member.
+FastAPI + SQLAlchemy + SQLite service.
 For general project conventions, see root AGENTS.md.
 
 ## Layout
@@ -17,18 +17,18 @@ tests/          API/characterization tests, real-OCR smoke fixtures
 ## Commands
 
 ```bash
-# from the workspace root
-uv run ruff format --check backend  # to write: drop --check
-uv run ruff check backend           # autofix: append --fix
-uv run basedpyright backend         # type check (config in root pyproject.toml)
+# from backend/
+uv run ruff format --check .  # to write: drop --check
+uv run ruff check .           # autofix: append --fix
+uv run basedpyright .         # type check (config in pyproject.toml)
 
-# backend dev server
-cd backend && uv run uvicorn app.main:app --port 8199
+# dev server
+uv run uvicorn app.main:app --port 8199
 
 # single-process mode serving the built frontend. --no-open: headless
 uv run odm --no-open
 
-# tests (from backend/). The real-OCR smoke is part of the default run
+# tests. The real-OCR smoke is part of the default run
 # and skips itself where no ihdb is present (CI)
 uv run pytest
 uv run pytest -m "not slow"  # quick run without the real-OCR smoke
@@ -108,13 +108,13 @@ can be reset any time by deleting `data/odm.sqlite3`.
 - Endpoints return Pydantic models, never bare dicts. A response model
   silently drops undeclared fields, so check field parity against the
   exact-equality tests. After API changes, run
-  `uv run python backend/scripts/dump_openapi.py` to refresh the
+  `uv run python scripts/dump_openapi.py` to refresh the
   committed `openapi.json`, then `pnpm generate:api` in `frontend/`
   to regenerate the wire types.
 - Add or update characterization tests before changing behavior.
 - `Depends()` in parameter defaults is declaration syntax, not a
   mutable default: B008 and `reportCallInDefaultInitializer` are
-  deliberately suppressed in the root `pyproject.toml`.
+  deliberately suppressed in `pyproject.toml`.
 
 ## Tests
 

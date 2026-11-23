@@ -1,15 +1,9 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version < '3.12'",
-]
-
-[manifest]
-members = [
-    "ocr-dataset-manager",
-    "odm-backend",
 ]
 
 [[package]]
@@ -723,14 +717,9 @@ wheels = [
 ]
 
 [[package]]
-name = "ocr-dataset-manager"
-version = "0.1.0"
-source = { virtual = "." }
-
-[[package]]
 name = "odm-backend"
 version = "0.1.0"
-source = { editable = "backend" }
+source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "arcaea-offline-ocr" },

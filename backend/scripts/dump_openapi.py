@@ -1,4 +1,4 @@
-"""Write the app's OpenAPI schema to openapi.json at the workspace root.
+"""Write the app's OpenAPI schema to openapi.json at the repository root.
 
 The frontend generates its wire types from that file, and
 `tests/test_openapi_spec.py` fails when the committed file drifts from

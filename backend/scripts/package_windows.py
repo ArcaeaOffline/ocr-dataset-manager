@@ -1,6 +1,6 @@
 """Build the Windows portable bundle with PyInstaller.
 
-Run from the repository root: uv run backend/scripts/package_windows.py
+Run from backend/: uv run scripts/package_windows.py
 
 Requires pnpm (the frontend build runs inside odm.spec). Output:
 build/dist/odm/.
