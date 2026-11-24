@@ -1,7 +1,6 @@
 version: 2
 
 updates:
-  # actions are SHA-pinned; one bump PR per month instead of one per action
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -10,12 +9,21 @@ updates:
       actions:
         patterns: ["*"]
 
+  # minor and patch updates share one PR per ecosystem; majors stay separate
   - package-ecosystem: uv
     directory: /
     schedule:
       interval: monthly
+    groups:
+      python-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: monthly
+    groups:
+      frontend-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
