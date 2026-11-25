@@ -180,7 +180,7 @@ def compute(_image_id: str, relative_path: str) -> PrefillResult:
         if img is None:
             msg = f"stored file unreadable: {relative_path}"
             raise ValueError(msg)
-        cropped = CropBlackEdges.crop_or_original(img)
+        cropped = CropBlackEdges.crop_or_clone(img)
 
         selector_result = DeviceRoisAutoSelector.select(cropped, None)
         if selector_result is DeviceRoisAutoSelectorResult.UNKNOWN:
@@ -324,7 +324,7 @@ def cropped_canvas(relative_path: str) -> MatLike:
     `device_rois` are coordinates on this image."""
     from arcaea_offline_ocr.crop import CropBlackEdges  # noqa: PLC0415
 
-    return CropBlackEdges.crop_or_original(_read_image(relative_path))
+    return CropBlackEdges.crop_or_clone(_read_image(relative_path))
 
 
 def cropped_jpeg(relative_path: str) -> bytes:

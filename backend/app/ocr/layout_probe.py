@@ -128,7 +128,7 @@ def _looks_like_device(img: MatLike) -> bool:
         DeviceRoisAutoSelectorResult,
     )
 
-    cropped = CropBlackEdges.crop_or_original(img)
+    cropped = CropBlackEdges.crop_or_clone(img)
     return (
         DeviceRoisAutoSelector.select(cropped, None)
         is not DeviceRoisAutoSelectorResult.UNKNOWN

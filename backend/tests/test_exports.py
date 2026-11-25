@@ -319,7 +319,7 @@ def test_export_crops_match_annotate_view(
     export_dir = _export_dir(export)
     stored = cv2.imread(str(storage.path_for(image.relative_path)))
     assert stored is not None
-    canvas = CropBlackEdges.crop_or_original(stored)
+    canvas = CropBlackEdges.crop_or_clone(stored)
     rects = prefill.device_rois(image.relative_path, 1)["rects"]
     for sample in samples:
         x, y, w, h = rects[str(sample["field"])]
